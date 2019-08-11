@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" 
+    integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN"
+    crossorigin="anonymous">
+<title>Prioritize Tasks</title>
+</head>
+<body>
+  <div class="container">
+    <div id="main" class="card">
+      <div class="card-content">
+        <span class="card-title">Prioritize by Clarification Question:</span>
+      </div>
+      <div class="card-action">
+        <div class="row">
+          <div class="col s9">
+            <h5 class="center-align flow-text" id="question-statement">
+              Example clarification question for these priorities
+            </h5>
+          </div>
+          <div class="col s3">
+            <h5 class="flow-text" id="question-amt-complete">4/12 (25%)</h5>
+          </div>
+        </div>
+      </div>
+      <div class="card-content">
+        <ul class="collection">
+          <!-- <li class="collection-item">
+            Weed the garden
+            <a href="#" class="select-item secondary-content">
+              <i class="material-icons">check_box_outline_blank</i>
+            </a>
+            <a href="#" class="visible-item secondary-content">
+                <i class="material-icons">visibility</i>
+            </a>
+            <span class="secondary-content" id="rank-item">
+              1st of 4 / 12 tot &nbsp;&nbsp;&nbsp; 
+            </span>  -->
+          <!-- </li>
+          <li class="collection-item">Research for Chris
+              <a href="#" class="select-item secondary-content">
+                  <i class="material-icons">check_box_outline_blank</i>
+                </a>
+                <a href="#" class="select-item secondary-content">
+                    <i class="material-icons">visibility</i>
+                </a>
+                  <span class="secondary-content" id="rank-item">
+                    2nd of 4 / 12 tot &nbsp;&nbsp;&nbsp; 
+                </span> 
+              </li> -->
+        </ul>
+        <div class="row">
+          <div class="task-visibility col s4 right-align">Show hidden tasks 
+          </div>
+          <div class="col s8">
+            <a href="#" class="select-mode">
+              <i class="material-icons" style="font-size:20px">check_box_outline_blank</i>
+            </a>
+            <!-- <a href="#" class="rapid-mode">
+              <i class="material-icons green white-text" style="font-size:18px">check</i>
+            </a> -->
+          </div>
+        </div>
+        <a href="#" class="goto-tasks btn black">Task List</a>
+        <a href="#" class="goto-qlist btn black">Questions</a>
+        <a href="#" class="goto-priority btn black">Prioritize</a>
+      </div>
+    </div>
+  </div>
+  <script
+  src="https://code.jquery.com/jquery-3.2.1.js"
+  integrity="sha256-DZAnKJ/6XZ9si04Hgrsxu/8s717jcIzLy3oi35EouyE="
+  crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+  <script src="priorityList.js"></script>
+<body>
+  
+</body>
+</html>
