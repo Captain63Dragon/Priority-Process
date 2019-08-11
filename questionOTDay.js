@@ -2,8 +2,8 @@
 const RAPID_MODE = 'rapid';
 const SEQUENTIAL_MODE = 'sequential';
 const DEFAULT_SELECT_MODE = SEQUENTIAL_MODE;
-
 let selectMode = DEFAULT_SELECT_MODE;
+
 // Define UI Variables.
 const selectModeCheck = document.querySelector('.select-mode');
 const prevBtn = document.querySelector('.prev-pair');
@@ -13,45 +13,44 @@ const itemList = document.querySelector('.collection');
 const questionStatement = document.querySelector('#question-statement');
 const progressDisplay = document.querySelector('#question-amt-complete');
 
-// testing variables
-let questionIndex = 0;
-const taskPairs = [
-  {pair: [{taskID: 10, selHist: '>'}, {taskID: 20, selHist: ''}]},
-  {pair: [{taskID: 11, selHist: ''}, {taskID: 21, selHist: ''}]},
-  {pair: [{taskID: 12, selHist: ''}, {taskID: 22, selHist: ''}]},
-  {pair: [{taskID: 31, selHist: '>'}, {taskID: 32, selHist: ''}]}
-]; 
-
-const tasks = [
-  {task: 'Weed the garden', id: 10},
-  {task: 'Code Priority Process', id: 11},
-  {task: 'Spec Sales Force for Customer', id: 12},
-  {task: 'Research for Chris', id: 20},
-  {task: 'Pick Saskatoons', id: 21},
-  {task: 'Eat Pie', id: 22},
-  {task: 'Fix kitchen sink', id: 31},
-  {task: 'Replace bathroom fan', id: 32}
-];
-
-const questions = [
-  {
-    question: 'What is the best way to make money?',
-    questionID: 1,
-    tasks: [],
-    taskPairs: [],
-    pairIndex: 0
+// global variables
+let questions = [];
+let questionIndex = null;
+let currQue;
+let tasks = []; // from the tasksBundle. Names of tasks.
+let [paramName, questionID] = location.search.substring(1).split('=');
+if (paramName.toLowerCase() === 'quid') {
+  // if ID is not a number, this will return index 0, which should be fine.
+  questionID = parseInt(questionID);
+} else {
+  console.log('question not specified! ' + location.search);
+  if (localStorage.getItem('selectedQuestionID') != null) {
+    questionID = JSON.parse(localStorage.getItem('selectedQuestionID'));
+  } else {
+    // default to question list page to select a question.
+    goToQuestionList(null);
   }
-];
-questions[questionIndex].tasks = tasks;
-questions[questionIndex].taskPairs = taskPairs;
+}
 
-// console.log(questions);
 
 // Load all event listeners
 loadEventListeners();
-loadFromLocalStorage();
+loadFromLS();
 
-function loadFromLocalStorage() {
+function loadEventListeners() {
+  // handle click on the checkbox icon associated with the mode prompt
+  selectModeCheck.addEventListener('click',toggleSelectMode);
+  // handle clicks on the checkbox icon associated with one of the task pair
+  itemList.addEventListener('click',itemSelected);
+  // handle previous button
+  prevBtn.addEventListener('click', previousPairUI);
+  // handle done button
+  doneBtn.addEventListener('click', goToPriorityList);
+  // handle next button
+  nextBtn.addEventListener('click', nextPairUI);
+}
+
+function loadFromLS() {
   if(localStorage.getItem('selectMode') === null) {
     // use the default as defined above
   } else {
@@ -69,55 +68,73 @@ function loadFromLocalStorage() {
       setRapidModeUI();
     }
   }
-  // load question from LocalStorage here
+  let questionsStr = localStorage.getItem('questions');
+  if (questionsStr === null) {
+    // must have questions. Load question list page to generate or select a question.
+    goToQuestionList(); 
+  } else {
+    questions = JSON.parse(questionsStr);
+  }
+
+  // Array.findIndex(function(cValue, ind, Arr), tValue)
+  if (typeof questionID == 'number') {
+    questionIndex = questions.findIndex((q) => (q.questionID === questionID )); 
+  } else {
+    questionIndex = 0;
+  }
+  currQue = questions[questionIndex];
+
+  let tasksStr = localStorage.getItem('tasksBundle');
+  if (tasksStr === null) {
+    tasks = []; 
+  } else {
+    let tasksBundle = JSON.parse(tasksStr);
+    tasks = tasksBundle.tasks;
+  }
+  createTaskPairsArray(currQue.tasks);
   setQuestionUI();
+}
+
+function goToPriorityList(e) {
+  window.open(`priority.html?quid=${questionID}`,"_top");
+  if (e != null) e.preventDefault();
+}
+
+function goToQuestionList(e) {
+  window.open('questionList.html', '_top');
+  if (e != null) e.preventDefault();
 }
 
 function saveSelectMode2LS(mode) {
   localStorage.setItem('selectMode', JSON.stringify(mode));
 }
 
-function loadEventListeners() {
-  // handle click on the checkbox icon associated with the mode prompt
-  selectModeCheck.addEventListener('click',toggleSelectMode);
-  // handle clicks on the checkbox icon associated with one of the task pair
-  itemList.addEventListener('click',itemSelected);
-  // handle previous button
-  prevBtn.addEventListener('click', previousPairUI);
-  // handle next button
-  nextBtn.addEventListener('click', nextPairUI);
-}
 function itemSelected(ev){
   if (ev.target.parentElement.classList.contains('select-item')) {
     let li;
-    let toChecked = null;
-    let que = questions[questionIndex];
     let selIndex = parseInt(ev.target.id);
-    let selTask = que.taskPairs[que.pairIndex].pair[selIndex];
+    let selTask = currQue.taskPairs[currQue.pairIndex].pair[selIndex];
     let otherIndex = selIndex ? 0 : 1;
-    let otherTask = que.taskPairs[que.pairIndex].pair[otherIndex];
+    let otherTask = currQue.taskPairs[currQue.pairIndex].pair[otherIndex];
     // li = ev.target.parentElement.parentElement;
     if (selectMode === RAPID_MODE) {
       selTask.selHist += '>';
       otherTask.selHist += '<';
-      nextInvalidPair();
-      refreshPairUI();
+      skipToRandomPair();
     } else {
       if (selTask.selHist.slice(-1,) === '>') {
         selTask.selHist += '=';
       } else {
         selTask.selHist += '>';
       }
-      refreshPairUI();
     }
+    storeQuestionInLS();
+    refreshPairUI();
   }
 }
 
-
-
 function toggleSelectMode(e){
   let checkIcon = selectModeCheck.firstChild.nextElementSibling.textContent;
-  let val;
   if (checkIcon === 'check') {
     setSequentialModeUI();
   } else {
@@ -126,8 +143,6 @@ function toggleSelectMode(e){
     refreshPairUI();
   }
   saveSelectMode2LS(selectMode);
-  // console.log(hRef);
-  // alert('Got to toggleSelectMode ' + val);
 }
 function setSequentialModeUI() {
   let checkIcon = 'check_box_outline_blank';
@@ -162,10 +177,10 @@ function updateModeUIComponents(innerHtmlString) {
 }
 
 function setQuestionUI() {
-  questionStatement.textContent = questions[questionIndex].question;
-  addTaskPairs(questions[questionIndex]);
+  questionStatement.textContent = currQue.question;
+  addTaskPairs(currQue);
   if(selectMode === RAPID_MODE) {
-    nextInvalidPair();
+    skipToRandomPair();
     refreshPairUI();
   }
 }
@@ -177,15 +192,14 @@ function addTaskPairs(que) {
   console.assert(cp >= 0, 'Invalid pair index. Less than zero!');
   let id = que.taskPairs[cp].pair[0].taskID;
   let hist = que.taskPairs[cp].pair[0].selHist;
-  let questionTasks = que.tasks;
-  if ((match = findTaskID(questionTasks,id)) !== null ) {
+  if ((match = findTaskID(tasks,id)) !== null ) {
     addTask(match.task, (hist === '') ? false : (hist.slice(-1,)) === ">", 0);
   } else {
     alert(`Task with id ${id} not found in question's task list`);
   }
   id = que.taskPairs[cp].pair[1].taskID;
   hist = que.taskPairs[cp].pair[1].selHist;
-  if ((match = findTaskID(questionTasks,id)) !== null ) {
+  if ((match = findTaskID(tasks,id)) !== null ) {
     addTask(match.task, (hist === '') ? false : (hist.slice(-1,)) === ">", 1);
   } else {
     alert(`Task with id ${id} not found in question's task list`);
@@ -195,13 +209,14 @@ function addTaskPairs(que) {
 
 function findTaskID(tasks, searchID) {
   let match = null;
-  tasks.forEach(aTask => {
+  tasks.forEach((aTask) => {
     if(aTask.id === searchID) {
       match = aTask;
-    }
+    } 
   });
   return match;
 } 
+
 // Add Task
 function addTask(taskString, selected,id) {
   const li = document.createElement('li');
@@ -234,9 +249,9 @@ function nextPairUI() {
   // move to the proper next pair
   if (selectMode === RAPID_MODE){
     // maybe update history for this pair for skip?
-    // User is skippin this invalid pair. Move to the next invalid pair, if any
-    nextTaskPair();
-    nextInvalidPair();
+    // User is skipping this invalid pair. Move to a random invalid pair, 
+    // if any are left.
+    skipToRandomPair();
   } else {
     nextTaskPair();
   }
@@ -249,59 +264,63 @@ function nextPairUI() {
     itemList.removeChild(itemList.firstChild);
   }
   // add new pair
-  addTaskPairs(questions[questionIndex]);
+  addTaskPairs(currQue);
+}
+
+function skipToRandomPair() {
+  let current = Math.trunc(Math.random() * (currQue.taskPairs.length));
+  currQue.pairIndex = current;
+  nextInvalidPair();
 }
 
 function nextInvalidPair() {
   // remember starting place.
-  let start = questions[questionIndex].pairIndex;
+  let start = currQue.pairIndex;
   let current = null;
-  let aPair = questions[questionIndex].taskPairs[start].pair;
+  let aPair = currQue.taskPairs[start].pair;
   let valid = (
     (aPair[0].selHist.slice(-1,) === '>') !=
     (aPair[1].selHist.slice(-1,) === '>') 
   );
-console.log(start,current,valid);
   // If current in valid go to next pair and see if it is valid
   // stop on invalid or when arrive back at start
   while(valid && (current != start)) {
     nextTaskPair();
-    current = questions[questionIndex].pairIndex;
-    aPair = questions[questionIndex].taskPairs[current].pair;
+    current = currQue.pairIndex;
+    aPair = currQue.taskPairs[current].pair;
     valid = (
       (aPair[0].selHist.slice(-1,) === '>') !=
       (aPair[1].selHist.slice(-1,) === '>') 
     );
-    console.log(`start: ${start} current: ${current} valid: ${valid}`)
-    aPair = questions[questionIndex].taskPairs[current].pair;
-    console.log(aPair);
+    aPair = currQue.taskPairs[current].pair;
   } 
 }
 
 // logically move to the next pair. This does not update the UI
 function nextTaskPair() {
-  let index = questions[questionIndex].pairIndex;
-  if (index + 1 < questions[questionIndex].taskPairs.length) {
-    questions[questionIndex].pairIndex++;
+  let index = currQue.pairIndex;
+  if (index + 1 < currQue.taskPairs.length) {
+    currQue.pairIndex++;
   } else {
-    questions[questionIndex].pairIndex = 0;
+    currQue.pairIndex = 0;
   }
 }
 
 // logically move to the previous pair. This does not update the UI
 function prevTaskPair() {
-  let index = questions[questionIndex].pairIndex;
+  let index = currQue.pairIndex;
   if (index == 0) {
-    questions[questionIndex].pairIndex = questions[questionIndex].taskPairs.length - 1;
+    currQue.pairIndex = currQue.taskPairs.length - 1;
   } else {
-    questions[questionIndex].pairIndex--;
+    currQue.pairIndex--;
   }
 }
 
+// progress is the string after the question showing how many pairs have been prioritized
 function updateProgress() {
   let tot = 0;
   let count = 0;
-  questions[questionIndex].taskPairs.forEach(aPair => {
+  currQue.taskPairs.forEach(aPair => {
     // fancy XOR of the two states. If only one is > then the pair is complete
     if ( (aPair.pair[0].selHist.slice(-1,) === '>') !=
          (aPair.pair[1].selHist.slice(-1,) === '>') ) {
@@ -310,4 +329,84 @@ function updateProgress() {
     tot++;
   });
   progressDisplay.textContent = `${count}/${tot} (${(100*count/tot).toFixed(0)}%)`;
+}
+
+// Bend over backwards to save pair histories.
+function createTaskPairsArray(tasks) {
+  let i = 1, j = 0;
+  let dirty = false;
+  let taskIDs = currQue.tasks;
+  const goodPair = [];
+
+  // first remove pairs containing task ids that are nolonger part of this
+  // question. This will lose the history for these. Oh well.
+  currQue.taskPairs.forEach(function(aPair, index){
+    let res1 = taskIDs.findIndex((id) => aPair.pair[0].taskID === id);
+    let res2 = taskIDs.findIndex((id) => aPair.pair[1].taskID === id);
+    // console.log(res1, res2, aPair);
+    if (res1 >= 0 && res2 >= 0) {
+      // console.log('Adding good pair '+ JSON.stringify(currQue.taskPairs[index]));
+      goodPair.push(aPair);
+    } else {
+      dirty = true; // this pair is being removed, to need to save update
+    }
+  });
+
+  // replace the old array with the good pairs. 
+  // Splice(index,1) messes up a forEach, so had to do it this way.
+  currQue.taskPairs = goodPair;
+  
+  // for all the task ids selected for this question, add only new pairs
+  while (i < tasks.length) {
+    j=0;
+    while (j < i) {
+      let res = currQue.taskPairs.find(function(aPair) {
+        return pairAlreadyExists(aPair,tasks[i],tasks[j]);
+      });
+      if (!res) {
+      //   console.log('found match for ' +tasks[i] + ' ' + tasks[j]);
+      // } else { // not found, so add the pair
+        // create pair with id address, tasks[i] and tasks[j]
+        let str = `{"pair": [{"taskID": ${tasks[i]}, "selHist": ""}, {"taskID": ${tasks[j]}, "selHist": ""}]}`;
+        // console.log('Adding '+str);
+        currQue.taskPairs.push(JSON.parse(str));
+        dirty = true; // new pair added; save update
+      }
+      j++;
+    }
+    i++;
+  }
+  if (dirty) {
+    // if pairs were touched above, save the changes
+    storeQuestionInLS();
+  }
+}
+
+// Pairs may be left-right or right-left so check both.
+// for now, the order does not matter
+function pairAlreadyExists(aPair,left,right) {
+  if (aPair.pair[0].taskID === left) {
+    if (aPair.pair[1].taskID === right) {
+      return true;
+    } 
+  } else if (aPair.pair[1].taskID === left){
+    if (aPair.pair[0].taskID === right) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// For sanity, save state for any changes
+function storeQuestionInLS(question, id) {
+  let str = localStorage.getItem('questions');
+  let tempQues;
+  if (str === null) {
+    tempQues = [];
+  } else{
+    tempQues = JSON.parse(str);
+  }
+  tempQues[questionIndex].taskPairs = currQue.taskPairs;
+  tempQues[questionIndex].pairIndex;
+  localStorage.setItem('questions', JSON.stringify(tempQues));
 }
