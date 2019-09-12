@@ -6,6 +6,7 @@ const itemList = document.querySelector('.collection');
 const doneBtn = document.querySelector('.goto-priority');
 const taskListBtn = document.querySelector('.goto-tasks');
 const questionBtn = document.querySelector('.goto-qlist');
+const visModeCheck = document.querySelector('.visibility-mode');
 
 let tasksBundle = null;
 let questions;
@@ -34,10 +35,11 @@ loadEventListeners();
 function loadEventListeners() {
   // DOM load event
   document.addEventListener('DOMContentLoaded', loadFromLS);
-  itemList.addEventListener('click',itemSelected);
+  itemList.addEventListener('click',listItemAction);
   doneBtn.addEventListener('click', goToQuestionOTDay);
   taskListBtn.addEventListener('click', goToTaskList);
   questionBtn.addEventListener('click', goToQuestionList);
+  visModeCheck.addEventListener('click',toggleVisibilityMode);
 }
 
 function goToQuestionOTDay(e){
@@ -54,6 +56,62 @@ function goToQuestionList(e){
   console.log('going to Priority with QuestionID: '+questionID);
   window.open(`questionList.html?quid=${questionID}`,'_top');
   if (e != null) e.preventDefault();
+}
+
+function listItemAction(ev) {
+  if (ev.target.parentElement.classList.contains('visible-item')) {
+    toggleTaskVisibility(ev);
+  } else if (ev.target.parentElement.classList.contains('select-item')) {
+    itemSelected(ev);
+  }
+}
+
+function toggleTaskVisibility(ev) {
+  if (ev.target.textContent === 'visibility') {
+    ev.target.textContent = 'visibility_off';
+  } else {
+    ev.target.textContent = 'visibility';
+  }
+  ev.preventDefault();
+}
+
+function toggleVisibilityMode(ev) {
+  let checkIcon = visModeCheck.firstChild.nextElementSibling.textContent;
+  let html;
+  if(checkIcon === 'check') {
+    checkIcon = 'check_box_outline_blank';
+    html = `<i class="material-icons" style="font-size:20px">${checkIcon}</i>`;
+    updateModeUIComponent(html);
+    updateHiddenTasks('hide');
+  } else {
+    checkIcon = 'check';
+    html = `<i class="material-icons green white-text" style="font-size:20px">${checkIcon}</i>`;
+    updateModeUIComponent(html);
+    updateHiddenTasks('show');
+  }
+  ev.preventDefault();
+}
+
+function updateHiddenTasks(state) {
+  document.querySelectorAll('.collection-item').forEach((item) => {
+    const icon = (item.firstChild.nextSibling.nextSibling.firstChild.textContent);
+    if(state == 'show') {
+      // turn everything on
+      item.style.display = 'block';
+    } else if (state == 'hide') {
+      if (icon !== 'visibility') {
+        item.style.display = 'none';
+      }
+    }
+  });
+}
+
+function updateModeUIComponent(innerHtmlString) {
+  const hRef = document.createElement('a');
+  hRef.className = 'visability-mode';
+  hRef.innerHTML = innerHtmlString;
+  visModeCheck.firstChild.nextElementSibling.remove();
+  visModeCheck.appendChild(hRef);
 }
 
 function itemSelected(ev) {
@@ -74,7 +132,7 @@ function itemSelected(ev) {
         storeTaskInLS(aTask.id);
       }
     }
-
+    ev.preventDefault();
   }
 }
 
@@ -179,23 +237,28 @@ function loadFromLS() {
   
   // after determining vote counts for tasks, sort by votes and apply rank.
   tasks.sort(function(a, b) {
+    //the following two tests fail once only for each instance of a and b
+    if(a.sel === undefined) {
+      a.sel =((currQue.tasks.findIndex((e) => e === a.id)) >= 0)?1:0;
+    }
+    if(b.sel === undefined) {
+      b.sel =((currQue.tasks.findIndex((e) => e === b.id)) >= 0)?1:0;
+    }
     if (a.votes != null) {
       if (b.votes != null) {
         return b.votes - a.votes;
       } else {
-        return -1;
+        return -1;  // if a has votes then a over b.
       }
     } else if (b.votes != null) {
-      return 1;
+      return 1; // if only b has votes then b higher than a
+    // not chosen on votes. What about selected?
     } else {
-      return 0;
+      return b.sel - a.sel;
     }
   });
   let rank = 1;
   tasks.forEach(function(task) {
-    if ((currQue.tasks.findIndex((e) => e === task.id)) >= 0) {
-      task.sel = 1;
-    } 
     if (task.votes > 0) {
       rank += createLIHtml(task, rank, pairs.length);
     } else {
@@ -223,14 +286,17 @@ function createLIHtml(task, rank, tot) {
   link.href ='#';
   link.innerHTML = '<i class="material-icons">visibility</i>&nbsp; '
   li.appendChild(link);
+  link = document.createElement('br');
+  li.appendChild(link);
   const span = document.createElement('span');
-  span.className = 'rank-item secondary-content';
+  span.className = 'rank-item';
+  span.style.cssText = 'color: darkcyan';
   if (task.sel > 0) {
     if (task.votes > 0) {
-      span.innerHTML = `${rankStr(rank)} (${task.votes} / ${tot})&nbsp;&nbsp;&nbsp`; 
+      span.innerHTML = `${rankStr(rank)} (${task.votes} / ${tot})`; 
       inc = 1;
     } else {
-      span.innerHTML = 'no votes&nbsp;&nbsp;&nbsp';
+      span.innerHTML = 'no votes';
     }
   } /*else { // this case is where you would comment on an unselected task
     span.innerHTML = '&nbsp;&nbsp;&nbsp'; 

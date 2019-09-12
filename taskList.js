@@ -100,14 +100,27 @@ function exportFileChanged(e) {
 
 // Export LS data to a file
 function exportLStoFile() {
-  const content = localStorage.getItem('tasks');
-  const contentType='text/plain'
-  let fileName = link2Download.download;
-  //  ='export2.json'
-  let file = new Blob([content], {type: contentType});
-  
-  link2Download.href = URL.createObjectURL(file);
-  link2Download.download = fileName;
+  const tb = JSON.parse(localStorage.getItem('tasksBundle'));
+  const q = JSON.parse(localStorage.getItem('questions'));
+  const lquid = JSON.parse(localStorage.getItem('lastQuestionID'));
+  if (tb == null || q == null) {
+    alert('Could not find LocalStorage data. No file created.');
+  } else {
+    // lquid = (lquid == null) ?  q[0].questionID : lquid;
+    const priorityData = {
+      tasksBundle:tb, 
+      questions: q, 
+      lastQuestionID: lquid}; // note, may be null. Todo: read will have to fix this
+    const content = JSON.stringify(priorityData);
+    const contentType='text/plain';
+    // console.log(content);
+    let fileName = link2Download.download;
+    //  ='export2.json'
+    let file = new Blob([content], {type: contentType});
+    
+    link2Download.href = URL.createObjectURL(file);
+    link2Download.download = fileName;
+  }
 }
 
 // Filter Tasks
@@ -123,6 +136,8 @@ function filterTasks(e) {
     }
   });
 }
+
+
 
 // Get Tasks from LS
 function loadTasksFromLS() {
