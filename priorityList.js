@@ -1,4 +1,10 @@
+import { request } from './request.js';
+
 // Define UI variables.
+// const isDebug = true;
+const isDebug = false;
+let randValue = Math.random();
+if (isDebug) { randValue = -1; }
 const taskList = document.querySelector('.collection');
 const questionStatement = document.querySelector('#question-statement');
 const progressDisplay = document.querySelector('#question-amt-complete');
@@ -7,6 +13,7 @@ const doneBtn = document.querySelector('.goto-priority');
 const taskListBtn = document.querySelector('.goto-tasks');
 const questionBtn = document.querySelector('.goto-qlist');
 const visModeCheck = document.querySelector('.visibility-mode');
+const myHeader = {"Content-type": "application/x-www-form-urlencoded"};
 
 let tasksBundle = null;
 let questions;
@@ -180,26 +187,57 @@ function setQuestionUI() {
   }
 }
 
-function loadFromLS() {
-  let questionsStr = localStorage.getItem('questions');
-  let tasksStr = localStorage.getItem('tasksBundle');
-  if (questionsStr === null) {
-    goToQuestionList();
-  } else {
-    questions = JSON.parse(questionsStr);
-  }
+function loadTasksFromSQL() {
+  let bodyStr = "query=taskList&state=FALSE&mode=none&x=" + randValue;
 
-  // Array.findIndex(function(cValue, ind, Arr), tValue)
-  questionIndex = questions.findIndex((q) => (q.questionID === questionID ));
-  currQue = questions[questionIndex];
+  request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    .then(data => {
+      // console.log(data.substring(3,7));
+      if (data.substring(3,8) === "tasks") {
+        let result = JSON.parse(data)[0];
+        tasks = result.tasks;
+        // lastTaskID = result.lastId; // This returned value is not needed here
+        tasks.forEach(task => { task.id = parseInt(task.id) });
+      } else {
+        console.log(data);
+      }
+    })
+    .catch(error => { 
+      console.log(error);
+      loadTasksFromLS()
+    })
+    .finally(() => {
+      populateTaskPairs();
+    });
+}
+
+function loadTasksFromLS() {
+  let tasksStr = localStorage.getItem('tasksBundle');
   if (tasksStr === null) {
     tasks = [];
   } else {
     tasksBundle = JSON.parse(tasksStr);
     tasks = tasksBundle.tasks; // note: these are ALL tasks
-  }
+    // lastTaskID = tasksBundle.lastTaskID;
+  }  
+}
 
-  // for current question, determine ranks for each task  
+function loadFromLS() {
+  let questionsStr = localStorage.getItem('questions');
+  if (questionsStr === null) {
+    goToQuestionList();
+  } else {
+    questions = JSON.parse(questionsStr);
+  }
+  
+  // Array.findIndex(function(cValue, ind, Arr), tValue)
+  questionIndex = questions.findIndex((q) => (q.questionID === questionID ));
+  currQue = questions[questionIndex];
+  loadTasksFromSQL();
+}
+
+// for current question, determine ranks for each task  
+function populateTaskPairs() {
   let pairs = currQue.taskPairs;
   validPairs = 0; // reset count and recalculate
   pairs.forEach(function(pair) {

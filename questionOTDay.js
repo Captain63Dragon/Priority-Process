@@ -1,8 +1,16 @@
+import { request } from './request.js';
+
 // Housekeeping variables.
 const RAPID_MODE = 'rapid';
 const SEQUENTIAL_MODE = 'sequential';
 const DEFAULT_SELECT_MODE = SEQUENTIAL_MODE;
 let selectMode = DEFAULT_SELECT_MODE;
+const isDebug = false;
+// const isDebug = true;
+let randValue = Math.random();
+if (isDebug) { ramdValue = -1; }
+const myHeader = {"Content-type": "application/x-www-form-urlencoded"};
+
 
 // Define UI Variables.
 const selectModeCheck = document.querySelector('.select-mode');
@@ -50,6 +58,27 @@ function loadEventListeners() {
   nextBtn.addEventListener('click', nextPairUI);
 }
 
+function loadTasksFromSQL() {
+  let bodyStr = "query=taskList&state=FALSE&mode=none&x=" + randValue;
+
+  request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+  .then(data => {
+    // console.log(data.substring(3,8));
+    if (data.substring(3,8) === "tasks") {
+      let result = JSON.parse(data)[0];
+      tasks = result.tasks;
+      tasks.forEach(task => { task.id = parseInt(task.id) });
+      createTaskPairsArray(currQue.tasks);
+      setQuestionUI();
+      } else {
+      console.log(data);
+    }
+  })
+  .catch(error => {
+      console.log(error);
+  });
+};
+
 function loadFromLS() {
   if(localStorage.getItem('selectMode') === null) {
     // use the default as defined above
@@ -83,16 +112,19 @@ function loadFromLS() {
     questionIndex = 0;
   }
   currQue = questions[questionIndex];
-
-  let tasksStr = localStorage.getItem('tasksBundle');
-  if (tasksStr === null) {
-    tasks = []; 
+  if (true) {
+    loadTasksFromSQL();
   } else {
-    let tasksBundle = JSON.parse(tasksStr);
-    tasks = tasksBundle.tasks;
+    let tasksStr = localStorage.getItem('tasksBundle');
+    if (tasksStr === null) {
+      tasks = []; 
+    } else {
+      let tasksBundle = JSON.parse(tasksStr);
+      tasks = tasksBundle.tasks;
+    }
+    createTaskPairsArray(currQue.tasks);
+    setQuestionUI();
   }
-  createTaskPairsArray(currQue.tasks);
-  setQuestionUI();
 }
 
 function goToPriorityList(e) {
@@ -188,6 +220,8 @@ function setQuestionUI() {
 // add Task pair from question to UI elements
 function addTaskPairs(que) {
   let cp = que.pairIndex;
+  let match;
+  console.log(tasks);
   console.assert(cp <= que.taskPairs.length,'Invalid pair index. Bigger than array!');
   console.assert(cp >= 0, 'Invalid pair index. Less than zero!');
   let id = que.taskPairs[cp].pair[0].taskID;

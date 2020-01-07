@@ -1,3 +1,7 @@
+// Housekeeping variables
+let lastQuestionID = -1;
+
+
 // Define UI variables.
 const form = document.querySelector('#question-form');
 const questionList = document.querySelector('.collection');
@@ -5,6 +9,8 @@ const clearBtn = document.querySelector('.clear-questions');
 const taskListBtn = document.querySelector('.goto-taskList');
 const filter = document.querySelector('#filter');
 const questionInput = document.querySelector('#question');
+
+// Load query parameter to get question id. Not expecting any other parameter.
 let [paramName, questionID] = location.search.substring(1).split('=');
 if (paramName.toLowerCase() === 'quid') {
   // if ID is not a number, this will return index 0, which should be fine.
@@ -13,7 +19,6 @@ if (paramName.toLowerCase() === 'quid') {
   console.log('question not specified! ' + location.search);
   questionID = null;
 }
-let lastQuestionID = -1;
 
 // load all event listeners
 loadEventListeners();
