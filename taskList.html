@@ -7,6 +7,12 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
   <link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
   <title>Task List</title>
+  <style>
+    .offline {
+      color: orangered;
+      font: bold 16px/30px Georgia, sans-serif;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -31,6 +37,7 @@
               <input type="text" name='filter' id='filter'>
               <label for="filter">Filter Tasks</label>
             </div>
+            <div class="offline">Server/Database unavailable. Offline editing only!</div>
             <ul class="collection"></ul>
             <a href="#" class="goto-question-list btn black">Questions</a>
             <a href="#" class="clear-tasks btn black">Clear Tasks</a>
@@ -52,6 +59,6 @@
   integrity="sha256-DZAnKJ/6XZ9si04Hgrsxu/8s717jcIzLy3oi35EouyE="
   crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
-  <script src="taskList.js"></script>
+  <script src="taskList.js" type='module'></script>
 </body>
 </html>
