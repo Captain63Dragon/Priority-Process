@@ -161,7 +161,9 @@ function doUpdateTaskState(obj) {
   return new Promise ((resolve, reject) => {
     let id = obj.id;
     let newState = obj.state;
-    let bodyStr = "query=updateState&id=" + id + "&state=" + newState +"&mode=DEBUG&x=" + randValue;
+    let bodyStr = "query=updateState&id=" + id + 
+    "&state=" + newState +
+    "&mode=DEBUG&x=" + randValue;
 
     // callback for xml http request object
     request({url: "model/getData.php", body: bodyStr, headers: myHeader})
@@ -286,24 +288,27 @@ function doDeleteActiveTasks() {
 
 function displayQuestionList(listClass) {
   return new Promise ((resolve, reject) => {
-    let bodyStr = "query=questionList&state=ALL&x=" + randValue;
+    let bodyStr = "query=questionList&state=ALL&mode=real&x=" + randValue;
     if (listClass !== "") {
-      request({url: "model/getData.php", bodyStr, headers: myHeader})
+      request({url: "model/getData.php", body: bodyStr, headers: myHeader})
       .then(data => {
         let txt;
+        console.log(data);
+        // console.log("Here is the current data:",data);
         if (data.substring(0,5) === "DEBUG") {
           txt = data;
         } else {
           let res = JSON.parse(data)[0];
-          txt = 'ul>\n';
+          txt = '<ul>\n';
           res.questions.forEach(item => {
             if (item.archived == "1") {
-              txt += '<li clase="done">';
+              txt += '<li class="done">';
             } else {
-              txt += '<li clase="active">';
+              txt += '<li class="active">';
             }
+            txt += `${item.id} - ${item.question}<br></li>\n`;
           });
-          lastQuestionId = pareseInt(res.lastId);
+          lastQuestionId = parseInt(res.lastId);
           txt += '\n</ul>\n';
         }
         document.querySelector(`.${listClass}`).innerHTML = txt;
@@ -321,24 +326,89 @@ function displayQuestionList(listClass) {
 
 function doCreateQuestion(newQuStr) {
   return new Promise ((resolve, reject) => {
-    let taskStr = encodeURIComponent(newQuStr, "UTF-8");
-    let bodyStr ="query=createQuestion&questionStr";
-    console.log('doCreateQuestion');
-    resolve();
+    let quStr = encodeURIComponent(newQuStr, "UTF-8");
+    let bodyStr ="query=createQuestion&questionStr=" + quStr + "&mode=DEBUG&x=" +randValue;
+    // console.log('doCreateQuestion with bodyStr: ',bodyStr);
+    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    .then(data => {
+      id = -1;
+      let txt;
+      if (data.substring(0,5) === "DEBUG") {
+        txt = data;
+        id = parseInt(data.substring(237,240));
+        // console.log("snippit: ", data.substring(230,245));
+      } else {
+        let res = JSON.parse(data);
+        if (res.id < 0) {
+          txt = `Create Question:<br>\nQuestion not created. Id returned:<br>\n${res.id} - ${quStr}<br>\n`;
+        } else {
+          txt = `Create Question:<br>\nSuccessfully create question:<br>\n${res.id} - ${quStr}<br>\n`;
+          id = res.id;
+        }
+      }
+      document.querySelector(".createQuestion").innerHTML += txt;
+      resolve(id);
+    })
+  })
+  .catch(error => {
+    console.log(error);
+    reject(error);
   })
 }
 
-function doDeleteQuestionId() {
+function doDeleteQuestionId(id) {
   return new Promise ((resolve, reject) => {
-    console.log('doDeleteQuestionId');
-    resolve();
+    let bodyStr = "query=deleteQuestionId&id=" + id + "&mode=DEBUG&x=" + randValue;
+    request({url: "model/getData.php", body: bodyStr, headers:myHeader})
+    .then(data => {
+      let txt = '';
+      if (data.substring(0,5) === "DEBUG") {
+        txt = data;
+      } else {
+        let result = JSON.parse(data);
+        if (result.id < 0) {
+          txt = `Delete question:<br>\nQuestion with Id ${id} not found. Returned ${result.id}<br>\n`;
+        } else {
+          txt = `Delete question:<br>\nQuestion with Id ${result.id} found and deleted<br>\n`;
+        }
+      }
+      document.querySelector(".deleteQuestionId").innerHTML = txt;
+      resolve();
+    })
+    .catch(error => {
+      console.log(error);
+      reject(error);
+    })
   })
 }
 
-function doUpdateQuestionState() {
+function doUpdateQuestionState(obj) {
   return new Promise ((resolve, reject) => {
-    console.log('doUpdateQuestionState');
-    resolve();
+    let id = obj.id;
+    let newState = obj.state;
+    let bodyStr = "query=updateQuestionState&id=" + id + 
+    "&state=" + newState + 
+    "&mode=DEBUG&x=" + randValue
+    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    .then(data => {
+      let txt;
+      if (data.substr(0,5) === "DEBUG") {
+        txt = data;
+      } else {
+        let res = JSON.parse(data);
+        if (res.id < 0) {
+          txt = `Update Question State:<br>\nQuestion state not changed or id ${id} not found<br>\n`;
+        } else {
+          txt = `Update Question State:<br>\nQuestion state changed to ${res.state} for id ${res.id}<br>\n`;
+        }
+      }
+      document.querySelector(".updateQuestionState").innerHTML = txt;
+      resolve();
+    })
+    .catch(error => {
+      console.log(error);
+      reject(error);
+    })
   })
 }
 
@@ -380,11 +450,15 @@ function loadDoc() {
   // .then(() => doDeleteActiveTasks())
   // .then(() => displayTaskList("deleteActiveTasksList"))
   doCreateQuestion('Adding a question in CreateQuestion')
-  .then(() => displayQuestionList("createQuestionList"))
-  // .then(() => doDeleteQuestionId())
-  // .then(() => displayTaskList("deleteQuestionIdList"))
-  // .then(() => doUpdateQuestionState())
-  // .then(() => displayTaskList("updateQuestionStateList"))
+  .then(data => {
+    console.log(data); 
+    setId(data);
+    return displayQuestionList("createQuestionList")
+  }) 
+  .then(() => doUpdateQuestionState( {id:getId(), state: "TRUE"}))
+  .then(() => displayQuestionList("updateQuestionStateList"))
+  .then(() => doDeleteQuestionId(getId()))
+  .then(() => displayQuestionList("deleteQuestionIdList"))
   // .then(() => doCreateTaskPairs())
   // .then(() => displayTaskList("createTaskPairsList"))
   // .then(() => doUpdateQTask())
