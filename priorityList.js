@@ -1,5 +1,7 @@
 import { request } from './request.js';
 
+// housekeeping variables.
+
 // Define UI variables.
 // const isDebug = true;
 const isDebug = false;
@@ -108,6 +110,7 @@ function toggleVisibilityMode(ev) {
   ev.preventDefault();
 }
 
+// hide/show all tasks that were/should be hidden
 function updateHiddenTasks(state) {
   document.querySelectorAll('.collection-item').forEach((item) => {
     const icon = (item.firstChild.nextSibling.nextSibling.firstChild.textContent);
@@ -122,6 +125,7 @@ function updateHiddenTasks(state) {
   });
 }
 
+// switch green checkbox and empty checkbox for "show hidden task" toggle
 function updateModeUIComponent(innerHtmlString) {
   const hRef = document.createElement('a');
   hRef.className = 'visability-mode';
@@ -294,8 +298,18 @@ function populateTaskPairs() {
   tasks.forEach(function(task) {
     if (task.votes > 0) {
       rank += createLIHtml(task, rank, pairs.length);
+    } else if (task.hidden === undefined) {
+      createLIHtml(task, 0, 0);
     } else {
-      createLIHtml(task,0,pairs.length);
+      // if hidden is defined, only display if somehow hidden is 0 or if hidding is not active
+      if (task.hidden === 0) {
+        createLIHtml(task,0,0);
+      } else if (task.hidden === 1 &&
+        visModeCheck.firstChild.nextElementSibling.textContent === 'check') {
+        createLIHtml(task,-1,0);
+      } else {
+        createLIHtml(task,-2,0);
+      }
     }
   });
 }
@@ -387,7 +401,19 @@ function createLIHtml(task, rank, tot) {
   link = document.createElement('a');
   link.className = 'visible-item secondary-content';
   link.href ='#';
-  link.innerHTML = '<i class="material-icons">visibility</i>&nbsp; '
+  console.log(rank,link,li);
+  if (rank < 0) { 
+    link.innerHTML = '<i class="material-icons">visibility_off</i>&nbsp; ';
+    if (rank === -2) {
+      li.style.display ='none';
+    } else {
+      li.style.display ='block';
+    }
+  } else {
+    link.innerHTML = '<i class="material-icons">visibility</i>&nbsp; ';
+    li.style.display ='block';
+  }
+
   li.appendChild(link);
   link = document.createElement('br');
   li.appendChild(link);
@@ -485,17 +511,15 @@ function loadQtasksFromSQL(quid) {
       if (data.substring(0,1) !== "0") { 
         let res = JSON.parse(data);
         let qtasks = [];
-        let hidden = [];
         res.forEach(item => {
           let id = parseInt(item.taskId);
           if (item.state === "0") {
             qtasks.push(id);
           } else if (item.state === "1") {
-            hidden.push(id);
+            tasks.find(t => t.id === id).hidden = 1;
           }
         })
         currQue.tasks = qtasks;
-        currQue.hidden = hidden;
         resolve("1");
       } else {
         // resolve as this just means no tasks have been selected yet
