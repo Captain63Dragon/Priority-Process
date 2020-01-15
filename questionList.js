@@ -1,6 +1,9 @@
+import { request } from './request.js';
+
 // Housekeeping variables
 let lastQuestionID = -1;
-
+let randValue = Math.random();
+const myHeader = {"Content-type": "application/x-www-form-urlencoded"};
 
 // Define UI variables.
 const form = document.querySelector('#question-form');
@@ -25,7 +28,7 @@ loadEventListeners();
 
 // Load all event listeners
 function loadEventListeners(){
-  document.addEventListener('DOMContentLoaded', loadQuestionsFromLS);
+  document.addEventListener('DOMContentLoaded', loadQuestionsFromSQL);
   form.addEventListener('submit', addQuestion);
   questionList.addEventListener('click', listItemAction);
   clearBtn.addEventListener('click', clearQuestions);
@@ -47,20 +50,51 @@ function addQuestion(e) {
   if (questionInput.value === '') {
     alert('Add a Question');
   } else {
-    const li = document.createElement('li');
-    li.className = 'collection-item';
-    li.appendChild(document.createTextNode(questionInput.value));
-    const link = document.createElement('a');
-    link.className = 'delete-item secondary-content';
-    lastQuestionID++;
-    link.innerHTML = `<i "${lastQuestionID}" class="fa fa-remove"></i>`;
-    li.appendChild(link);
-    questionList.appendChild(li);
-    storeQuestionInLS(questionInput.value, lastQuestionID);
-    questionInput.value = '';
-    window.open(`priority.html?quid=${lastQuestionID}`,'_top');
-    e.preventDefault();
+    storeQuestionInSQL(questionInput.value)
+    .then(newQuid => {
+      const li = document.createElement('li');
+      li.className = 'collection-item';
+      li.appendChild(document.createTextNode(questionInput.value));
+      const link = document.createElement('a');
+      link.className = 'delete-item secondary-content';
+      lastQuestionID++;
+      link.innerHTML = `<i "${newQuid}" class="fa fa-remove"></i>`;
+      li.appendChild(link);
+      questionList.appendChild(li);
+      questionInput.value = '';
+      window.open(`priority.html?quid=${newQuid}`,'_top');
+      e.preventDefault();
+    })
+    .catch(error => {
+      console.log(error);
+    })
   }
+}
+
+function storeQuestionInSQL(question) {
+  return new Promise ((resolve, reject) => {
+    let quStr = encodeURIComponent(question, "UTF-8");
+    let bodyStr ="query=createQuestion&questionStr=" + quStr + "&mode=DEBUG&x=" +randValue;
+    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    .then(data => {
+      id = -1;
+      let txt;
+      if (data.substring(0,5) !== "alksjdf") {
+        console.log(data.substring(1,16), "Data:\n",data);
+      } else {
+        let res = JSON.parse(data);
+        if (res.id >= 0) {
+          resolve(res.id);
+        } else {
+          reject(`Create Question failed: Returned invalid id: ${res.id} - ${quStr}`);
+        }
+      }
+    })
+  })
+  .catch(error => {
+    console.log(error);
+    reject(error);
+  })
 }
 
 function storeQuestionInLS(question, id) {
@@ -96,7 +130,7 @@ function clearQuestions() {
         while(questionList.firstChild) {
           questionList.removeChild(questionList.firstChild);
         }
-        clearQuestionsFromLS();
+        clearQuestionsFromLS(); // todo: mark all questions inactive
       }
     }
   }
@@ -131,6 +165,21 @@ function filterQuestions(e) {
   });
 }
 
+function loadQuestionsFromSQL() {
+  let bodyStr = "query=questionList&state=FALSE&mode=active&x=" + randValue;
+  request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+    .then(data => {
+      if (data.substring(3,12) != "questions") {
+        console.log(`"${data.substring(3,12)} from\n${data}"`);
+      } else {
+        let res = JSON.parse(data)[0];
+        res.questions.forEach(item => {
+          createQuestionLI(item.question, item.id);
+        })
+      }
+    })
+}
+
 // Get questions from LS
 function loadQuestionsFromLS() {
   let str = localStorage.getItem('questions');
@@ -148,39 +197,71 @@ function loadQuestionsFromLS() {
   }
 
   questions.forEach(function(que) {
-    const li = document.createElement('li');
-    li.className = 'collection-item';
-    li.appendChild(document.createTextNode(que.question));
-    let link = document.createElement('a');
-    link.className = 'delete-item secondary-content';
-    link.innerHTML = `<i id="${que.questionID}" class="fa fa-remove"></i>`;
-    li.appendChild(link);
-    link = document.createElement('a');
-    link.className = 'select-item secondary-content';
-    let icon = (que.questionID === questionID) ? 
-      'check' : 'check_box_outline_blank' ;
-    link.innerHTML = 
-      `<i id="${que.questionID}" class="material-icons">${icon}</i>`;
-    li.appendChild(link);
-    questionList.appendChild(li);
+    createQuestionLI(que.question, que.questionID);
   });
+}
+
+function createQuestionLI(question, quid) {
+  const li = document.createElement('li');
+  li.className = 'collection-item';
+  li.appendChild(document.createTextNode(question));
+  let link = document.createElement('a');
+  link.className = 'delete-item secondary-content';
+  link.innerHTML = `<i id="${quid}" class="fa fa-remove"></i>`;
+  li.appendChild(link);
+  link = document.createElement('a');
+  link.className = 'select-item secondary-content';
+  let icon = (questionID === quid) ?
+    'check' : 'check_box_outline_blank' ;
+  link.innerHTML =
+    `<i id="${quid}" class="material-icons">${icon}</i>`;
+  li.appendChild(link);
+  questionList.appendChild(li);
+
 }
 
 // remove Question
 function removeQuestion (e) {
   if (e.target.parentElement.classList.contains('delete-item')) {
-    if (confirm('Are you sure?')) {
-      e.target.parentElement.parentElement.remove();
-      console.log(e.target.id);
-      removeQuestionFromLS(e.target.id);
+    let qtext = e.target.parentElement.parentElement.innerHTML;
+    qtext = qtext.substr(0,qtext.indexOf('<a class'));
+    if(confirm(`Removing "${qtext}". Are you sure?`)) {
+      // console.log(e.target.id);
+      removeQuestionFromSQL(e.target.id)
+      .then( removed => {
+        console.assert(e.target.id === removed, "Deletion was wonky! Check it out.");
+        e.target.parentElement.parentElement.remove();
+      })
+      .catch(error => {
+        console.log(error);
+      })
     }
   }
 }
 
 function selectQuestion(e) {
   questionID = e.target.id;
-  storeQuestionInLS();
+  // storeQuestionInLS(); I don't think this is needed anymore.
   goToPriorityList(null);
+}
+function removeQuestionFromSQL(quid){
+  return new Promise ((resolve, reject) => {
+    let bodyStr = "query=deleteQuestionId&id=" + quid + "&mode=active&x=" + randValue;
+    request({url: "model/getData.php", body: bodyStr, headers:myHeader})
+      .then(data => {
+        let result = JSON.parse(data);
+        if (result.id >= 0) { // id of deleted record returned..
+          // console.log (`deleted id: ${result.id} found and deleted<br>\n`);
+          resolve(result.id);
+        } else {
+          reject("Deletion returned code: " + result.id);
+        }
+      })
+      .catch(error => {
+        console.log(error);
+        reject(error);
+      })
+  })
 }
 
 function removeQuestionFromLS(questId) {
