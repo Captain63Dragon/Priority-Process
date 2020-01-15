@@ -10,13 +10,19 @@ if ( $debug !== "DEBUG") {
 if ($debug == "DEBUG") {
   $taskTable = 'taskbak';
   $questionTable = 'question'; // using the same table for now. This will change.
+  $taskPairTable = 'taskPair';
+  $qtaskTable = 'qtask';
 } elseif ($_POST["x"] == "-1") {
   $taskTable = 'taskbak';
   $questionTable = 'question';
+  $taskPairTable = 'taskPair';
+  $qtaskTable = 'qtask';
   // TODO: intend to use this code to select the table in the future. Replace X with User or someting suitable
 } else {
   $taskTable = 'tasks';
   $questionTable = 'question';
+  $taskPairTable = 'taskPair';
+  $qtaskTable = 'qtask';
 }
 
 // debugging instrumentation that is echoed if $debug is defined. Will likely mess up data transfer for the 
@@ -73,17 +79,252 @@ function doQuestionList($connection, $table, $state) {
   echo $someJSON;
 }
 
+function doTaskPairList($connection, $table, $quid) {
+  $myQu = "SELECT quid, task1, task2, historyMarks1, historyMarks2, historyTimes FROM " . 
+  $table . " WHERE quid=" . $quid;
+  cLog("the query I've built is: " . $myQu . "<br>\n");
+  $query = mysqli_query($connection, $myQu);
+  $results =[];
+  while ($row = mysqli_fetch_assoc($query)) {
+    array_push($results, [
+      'quid' => $row['quid'],
+      'task1' => $row['task1'],
+      'task2' => $row['task2'],
+      'historyMarks1' => $row['historyMarks1'],
+      'historyMarks2' => $row['historyMarks2'],
+      'historyTimes' => $row['historyTimes']
+    ]);
+  }
+  echo json_encode($results);
+}
+
+function doQTaskList($connection, $table, $quid) {
+  // SELECT quid, taskId, state FROM qtask WHERE quid=1
+  $myQu = "SELECT quid, taskId, state FROM " . 
+  $table . " WHERE quid=" . $quid;
+  cLog("the query I've built is: " . $myQu . "<br>\n");
+  $query = mysqli_query($connection, $myQu );
+  $results =[];
+  while ($row = mysqli_fetch_assoc($query)) {
+    array_push($results, [
+      'quid' => $row['quid'],
+      'taskId' => $row['taskId'],
+      'state' => $row['state']
+    ]);
+  }
+  echo json_encode($results);
+}
+
+function doCreateQuestionTaskPairs($connection, $quid) {
+  cLog("do the create/update of Question task pairs<br>\n");
+  if($quid >= 0 ) {
+    $myQu = "INSERT IGNORE INTO taskPair " . 
+    "(quid, task1, task2) " .
+    "(SELECT ql.quid, ql.taskId, qr.taskId " . 
+    "FROM " .
+      "qtask AS ql LEFT JOIN " . 
+      "qtask AS qr " . 
+        "ON ql.taskId < qr.taskId AND qr.quid = ql.quid AND qr.state=0 " .
+        "WHERE ql.state=0 AND ql.quid=" . $quid . " AND qr.taskId!=0 )";
+    cLog("the query I've build is: " . $myQu . "<br>\n");
+    $query = mysqli_query($connection, $myQu);
+    if ($connection->affected_rows == 0) {
+      cLog(mysqli_error($connection) . "<br>\nNo Task Pairs created<br>\n");
+    } else {
+      cLog ("Task Pair(s) created<br>\n");
+    }
+    // now get full results. Note there may be task pairs with history we are keeping that
+    // are no longer selected for this question. It is assumed here that old qtask are deleted.
+    // if that is not the case, then those will need to be filtered here or by the caller.
+    $myQu = "SELECT task1, task2, historyMarks1, historyMarks2 FROM " . 
+      "taskPair tp " .
+      "LEFT JOIN qtask ql ON ql.taskId=tp.task1 " .
+      "LEFT JOIN qtask qr ON qr.taskId=tp.task2 " .
+      "WHERE tp.quid=" . $quid . " AND tp.quid=ql.quid AND ql.quid=qr.quid " .
+       "AND ql.state=0 AND qr.state=0";
+    cLog("returning relevant task pairs for quid " . $quid . "<br>\n");
+    $query = mysqli_query($connection, $myQu);
+    if ($connection->affected_rows > 0) {
+      $results=[];
+      while ($row = mysqli_fetch_assoc($query)) {
+        array_push($results,  [ 'pair' => [ [
+            'taskId' => $row['task1'],
+            'selHist' => $row['historyMarks1'] 
+          ], [
+            'taskId' => $row['task2'],
+            'selHist' => $row['historyMarks2'] ]
+        ] ]);
+      }
+      if (count($results) > 0) {
+        echo json_encode($results);
+      } else {
+        cLog("No valid task pairs found<br>\n");
+        echo "0";
+      }
+    } else {
+      cLog("No valid task pairs found<br>\n");
+      echo "0";
+    }
+  } else {
+    cLog("invalid id provided: quid: ". $quid . "<br>\n");
+    echo "0";
+  }
+  // INSERT INTO taskPair 
+  //   (quid, task1, task2) 
+  //   (select 
+  //     ql.quid, ql.taskId, qr.taskId 
+  //   from 
+  //     qtask as ql left join 
+  //     qtask as qr on ql.taskId < qr.taskId 
+  //     where ql.quid=1 and qr.taskId!=0
+  //   ) 
+  //   on duplicate key update historyTimes=CONCAT(historyTimes,"123456789");
+  // TODO: This will be useful in PriorityList.js program
+}  
+
+function doCreateATaskPair($connection,$table,$quid,$id1,$id2,$hist1,$hist2,$ts) {
+  cLog("do the create/insert function<br>\n");
+  if ($quid >= 0 && $id1 >= 0 && $id2 >= 0) {
+    if ($ts === "" && $hist1 === "" && $hist2 === "") {
+      $myQu = 'INSERT INTO ' . $table . ' (quid, task1, task2) VALUES (' .
+      $quid . ", " . 
+      $id1 . ", " . 
+      $id2 . ') ON DUPLICATE KEY UPDATE historyTimes=CONCAT(historyTimes,"-' . 
+      $ts . '";';
+    } else {
+      $myQu = 'INSERT INTO ' . $table . ' (quid, task1, task2, historyMarks1, historyMarks2, historyTimes) VALUES (' .
+      $quid . ", " . 
+      $id1 . ", " . 
+      $id2 . ', "' . 
+      $hist1 . '", "' . 
+      $hist2 . '", "' . 
+      $ts . '") ON DUPLICATE KEY UPDATE historyMarks1="' .
+      $hist1 . '", historyMarks2="' . 
+      $hist2 . '", historyTimes=CONCAT(historyTimes,"-' .
+      $ts . '");'; 
+    } 
+    cLog("The query I've built is: " . $myQu . "<br>\n");
+    $query = mysqli_query($connection, $myQu);
+    if ($connection->affected_rows == 0) {
+      cLog(mysqli_error($connection) . "<br>\nTask Pair not inserted<br>\n");
+      echo "0";
+    } else if ($connection->affected_rows == 2) {
+      cLog ("previous task pair found. Updated timestamp<br>\n");
+      echo "1";
+    } else {
+      cLog ("task pair inserted for quid: " . $quid . " (" . $id1 . ", " . $id2 . ")<br>\n");
+      echo "1";
+    }
+  } else {
+    cLog("invalid id(s): question id: " . $quid . 
+    " task 1: " . $id1 . 
+    " task 2: " . $id2 . "<br>\nAll ids are required");
+  }
+}
+
+function doCreateQTask($connection, $table, $quid, $taskId, $state) {
+  cLog("do the create/inser function<br>\n");
+  $myQu = 'INSERT INTO ' . $table . ' (quid, taskId, state) VALUES (' . 
+    $quid . ', ' . 
+    $taskId . ', ' . 
+    $state . ') ON DUPLICATE KEY UPDATE state=' . $state . ';';
+  cLog("the query I've built is: " . $myQu . "<br>");
+  $connection->query($myQu);
+  if($connection->affected_rows > 1) { 
+    cLog("Updated QTask to state: " . $state . "<br\n");
+    echo 1;
+  } else if ($connection->affected_rows != 1) {
+    cLog(mysqli_error($connection) . "<br>\nQTask not inserted <br\n");
+    echo 0;
+  } else {
+    cLog("QTask inserted successfully<br>\n");
+    echo 1;
+  }
+}
+
+function doDeleteQTask($connection, $table, $quid, $taskId) {
+  $myQu = 'DELETE FROM ' . $table . ' WHERE quid=' . $quid . ' AND taskId=' . $taskId;
+  $connection->query($myQu);
+  if($connection->affected_rows > 0) {
+    echo "1";
+  } else {
+    echo "0";
+  }
+}
+
 if ($debug == "DEBUG") {
   cLog("DEBUG<br />\n"); // put this at the top of the results so caller no longer expects actual data back
 }
 
 $function = $_POST["query"];
+$con = openDatabase();
 
-switch ($function) {case "questionList":
-  cLog("case questionList selected <br>\n");
-  $state = $_POST["state"];
-  cLog("questionList state parameter " . $state . " received<br>\n");
-  $con = openDatabase();
-  doQuestionList($con, $questionTable, $state);
-break;
+switch ($function) {
+  case "questionList":
+    cLog("case questionList selected <br>\n");
+    $state = $_POST["state"];
+    cLog("questionList state parameter " . $state . " received<br>\n");
+    doQuestionList($con, $questionTable, $state);
+  break;
+  case "taskPairList":
+    cLog("case taskPairList selected <br>\n");
+    $quid = $_POST["quid"];
+    cLog("taskPairList question Id parameter " . $quid . " received<br>\n");
+    doTaskPairList($con, $taskPairTable, $quid);
+  break;
+  case "createTaskPair":
+    cLog("case createTaskPairs selected<br>\n");
+    $paramStr = $_POST["paramStr"];
+    cLog("task pairs parameter: " . $paramStr . " received<br>\n");
+    $params = json_decode($paramStr);
+    cLog("task pair question parameter " . $params->quid . "<br>\n");
+    cLog("task pair id1 parameter " . $params->task1 . "<br>\n");
+    cLog("task pair id2 parameter " . $params->task2 . "<br>\n");
+    cLog("pair selHist1 parameter " . $params->selHist1 . "<br>\n");
+    cLog("pair selHist2 parameter " . $params->selHist2 . "<br>\n");
+    cLog("pair ts parameter " . $params->ts . "<br>\n");
+    doCreateATaskPair($con,$taskPairTable,
+      $params->quid,
+      $params->task1,
+      $params->task2,
+      $params->selHist1,
+      $params->selHist2,
+      $params->ts); //Placeholder for the timestamp field that may not be used.
+  break;
+  case "createQuestionTaskPairs":
+    $quid = $_POST["quid"];
+    doCreateQuestionTaskPairs($con,$quid);
+  break;
+  case "createQTask":
+    cLog("case createQTask selected<br>\n");
+    $paramStr = $_POST["paramStr"];
+    cLog("params: " . $paramStr . " received<br>\n");
+    $params = json_decode($paramStr);
+    cLog("qtask question id: " . $params->quid . "<br>\n");
+    cLog("task id parameter: " . $params->taskId . "<br>\n");
+    cLog("task id parameter: " . $params->state . "<br>\n");
+    doCreateQTask($con, $qtaskTable, 
+      $params->quid, 
+      $params->taskId,
+      $params->state);
+  break;
+  case "deleteQTask":
+    $paramStr = $_POST["paramStr"];
+    $params = json_decode($paramStr);
+    doDeleteQTask($con, $qtaskTable, $params->quid, $params->taskId);
+  break;
+  case "QTaskList":
+    cLog("case QTaskList selected <br>\n");
+    $quid = $_POST["quid"];
+    cLog("taskPairList question Id parameter " . $quid . " received<br>\n");
+    doQTaskList($con, $qtaskTable, $quid);
+  break;
+  case "updateTaskPair":
+    cLog('case ' . $function . ' requested,br />\n');
+  break;
+  default:
+    cLog("case [" . $function . "] not recognized <br />");
+}
+
 ?>
+

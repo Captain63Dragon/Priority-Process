@@ -7,49 +7,6 @@ let lastTaskID = -1;
 let lastQuestionId = -1;
 let id = -1; // this has a setter and getter.
 
-// this function was used prior to promises. not used.
-function initiateXHttp(xhttp, module, id, newState ) {
-  let debugStr = (isDebug) ? "&mode=DEBUG" : "";
-  let rndStr = "&x=" + randValue;
-  xhttp.open("POST", "model/getData.php", true);
-  xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-  let sendStr = "";
-  switch (module) {
-    case "taskList":
-      sendStr = "query="+ module;
-      break;
-
-    case "deleteId":
-      sendStr = "query=" + module + "&id=" + id;
-      break;
-
-    case "createTask":
-      // add the random number so that a cached response is not sent.
-      let taskStr = encodeURIComponent(id, "UTF-8");
-      console.log(taskStr);
-      sendStr = "query=" + module + "&taskStr=" + taskStr;
-      break;
-
-    case "updateState":
-      // valid states are boolean TRUE and FALSE passed to the MySQL
-      sendStr = "query=" + module + "&id=" + id + "&state=" + newState;
-      break;
-
-    case "clearTasks":
-      // note for mode: Delete removes all records, Done set all records to done
-      let mode = (id < 0) ? "delete" : "done";
-      sendStr = "query=" + module + "&mode=" + mode;
-      break;
-
-    default:
-      // Todo: signal invalid command
-      break;
-  }
-  sendStr += debugStr + rndStr;
-  console.log(sendStr);
-  xhttp.send(sendStr);
-}
-
 function displayTaskList(listClass) {
   return new Promise ((resolve, reject) => {
     let bodyStr = "query=taskList&state=ALL&x=" + randValue;
@@ -111,7 +68,6 @@ function doDeleteTaskId(id) {
           }
         }
         document.querySelector(".deleteTaskId").innerHTML = txt;
-        console.log("Finished doDeleteTaskId");
         resolve();
       })
       .catch(error => {
@@ -144,7 +100,6 @@ function createTask(newTaskStr) {
           }
         }
         document.querySelector(".createTask").innerHTML += txt;
-        console.log("Finished CreateTask");
         resolve(getId());
       })
       .catch(error => {
@@ -180,7 +135,6 @@ function doUpdateTaskState(obj) {
         }
       }
       document.querySelector(".updateTaskState").innerHTML = txt;
-      console.log("Finished doUpdatetaskState");
       resolve();
     })
     .catch(error => {
@@ -245,7 +199,6 @@ function doMarkTaskDone() {
           }
         }
         document.querySelector(".markTasksDone").innerHTML = txt;
-        console.log("Finished doMarkTaskDone");
         resolve(true);
       })
       .catch(error => {
@@ -290,7 +243,7 @@ function displayQuestionList(listClass) {
   return new Promise ((resolve, reject) => {
     let bodyStr = "query=questionList&state=ALL&mode=real&x=" + randValue;
     if (listClass !== "") {
-      request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+      request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
       .then(data => {
         let txt;
         console.log(data);
@@ -412,17 +365,155 @@ function doUpdateQuestionState(obj) {
   })
 }
 
-function doCreateTaskPairs() {
+function displayTaskPairsList(listClass, quid) {
   return new Promise ((resolve, reject) => {
-    console.log('doCreateTaskPairs');
-    resolve();
+    let bodyStr = `query=taskPairList&quid=${quid}&mode=active&x=` + randValue;
+    if (listClass !== "") {
+      request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+        .then(data => {
+          let txt;
+          if (data.substring(0,5) === "DEBUG") {
+            txt = data;
+          } else {
+            let res = JSON.parse(data);
+            // console.log(res);
+            txt = '<ul>\n';
+            res.forEach(item => {
+              txt += '<li class="active">';
+              txt += `${item.quid} - ${item.task1}/${item.task2} ["${item.historyMarks1}" / "${item.historyMarks2}"] [timestamps: ${item.historyTimes}]<br /></li>\n`;
+            });
+            txt += '\n</ul>\n';
+          }
+          document.querySelector(`.${listClass}`).innerHTML = txt;
+          resolve();
+        })
+        .catch(error => {
+            console.log(error);
+            reject(error);
+        });
+    } else {
+      resolve();
+    }
   })
 }
 
-function doUpdateQTask() {
+function doCreateTaskPairs(params) {
   return new Promise ((resolve, reject) => {
-    console.log('doUpdateQTask');
-    resolve();
+    let paramStr = JSON.stringify(params);
+    let bodyStr = "query=createATaskPair&paramStr=" + paramStr + "&mode=active&x=" + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+      .then(data => {
+        // console.log(data.substring(3,7));
+        let txt;
+        if (data.substring(0,5) === "DEBUG") {
+          txt = data;
+        } else {
+          let ret = parseInt(data.substr(0,1));
+          if (ret == 1) {
+            txt = `Create Task Pair:<br />\nSuccessfully created/updated task pair with return: ${ret} - ${paramStr}<br />\n`;
+          } else if (Number.isNaN(ret)) {
+            txt = `Create Task Pair: something else happend: ${data}<br>\n`;
+          } else {
+            txt = `Create Task Pair:<br />\nTask pair not created. Returned: ${ret} - ${paramStr}<br />\n`;
+          }
+        }
+        document.querySelector(".createTaskPairs").innerHTML = txt;
+        resolve(getId());
+      })
+      .catch(error => {
+          console.log(error);
+          reject(error);
+      });
+  })
+}
+
+function doCreateQuestionTaskPairs(quid) {
+  return new Promise ((resolve, reject) => {
+    let bodyStr = "query=createQuestionTaskPairs&quid=" + quid + "&mode=DEBUG&x=" + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+      .then(data => {
+        let txt;
+        if (data.substring(0,5) === "DEBUG") {
+          txt = data;
+        } else if (data.substring(0,1) === '0') { 
+          resolve(data);
+        } else {
+          let ret = JSON.parse(data);
+          txt = '<ul>\n';
+          ret.forEach(item => {
+            txt += '<li class="active">';
+            txt += `${item.pair[0].taskId} / ${item.pair[1].taskId}<br /></li>\n`;
+          });
+          txt += '\n</ul>\n';
+        }
+        document.querySelector(".createTaskPairsList").innerHTML = txt;
+        resolve();
+      })
+      .catch(error => {
+          console.log(error);
+          reject(error);
+      });
+  })
+}
+
+function doCreateQTask(params) {
+  return new Promise ((resolve, reject) => {
+    let paramStr = JSON.stringify(params);
+    let bodyStr = "query=createQTask&paramStr=" + paramStr + "&mode=DEBUG&x=" + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+      .then(data => {
+        let txt;
+        if (data.substring(0,5) === "DEBUG") {
+          txt = data;
+        } else {
+          let ret = parseInt(data.substr(0,1));
+          if (ret == 1) {
+            txt = `Create QTask:<br />\nSuccessfully created/updated Qtask with return: ${ret} - ${paramStr}<br />\n`;
+          } else if (Number.isNaN(ret)) {
+            txt = `Create QTask: something else happend: ${data}<br>\n`;
+          } else {
+            txt = `Create QTask:<br />\nQTask not created. Returned: ${ret} - ${paramStr}<br />\n`;
+          }
+        }
+        document.querySelector(".createQTask").innerHTML += txt;
+        resolve();
+      })
+      .catch(error => {
+          console.log(error);
+          reject(error);
+      });
+  })
+}
+
+function displayQTaskList(listClass, quid) {
+  return new Promise ((resolve, reject) => {
+    let bodyStr = `query=QTaskList&quid=${quid}&mode=active&x=` + randValue;
+    if (listClass !== "") {
+      request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+        .then(data => {
+          let txt;
+          if (data.substring(0,5) === "DEBUG") {
+            txt = data;
+          } else {
+            let res = JSON.parse(data);
+            // console.log(res);
+            txt = '<ul>\n';
+            res.forEach(item => {
+              txt += '<li class="active">';
+              txt += `${item.quid} - task: ${item.taskId} [state: ${item.state}]<br></li>\n`;
+            });
+            txt += '\n</ul>\n';
+          }
+          document.querySelector(`.${listClass}`).innerHTML = txt;
+          resolve();
+        })
+        .catch(error => {
+            console.log(error);
+            reject(error);
+        });
+    } else {
+      resolve();
+    }
   })
 }
 
@@ -449,23 +540,23 @@ function loadDoc() {
   // .then(() => displayTaskList("markTasksDoneList")) 
   // .then(() => doDeleteActiveTasks())
   // .then(() => displayTaskList("deleteActiveTasksList"))
-  doCreateQuestion('Adding a question in CreateQuestion')
-  .then(data => {
-    console.log(data); 
-    setId(data);
-    return displayQuestionList("createQuestionList")
-  }) 
-  .then(() => doUpdateQuestionState( {id:getId(), state: "TRUE"}))
-  .then(() => displayQuestionList("updateQuestionStateList"))
-  .then(() => doDeleteQuestionId(getId()))
-  .then(() => displayQuestionList("deleteQuestionIdList"))
-  // .then(() => doCreateTaskPairs())
-  // .then(() => displayTaskList("createTaskPairsList"))
-  // .then(() => doUpdateQTask())
-  // .then(() => displayTaskList("updateQTaskList"))
-  // .then(() => doUpdateTaskPair())
-  // .then(() => displayTaskList("updateTaskPairList"))
-  // .then(() => displayTaskList("questionList"))
+  // .then(() => doCreateQuestion('Adding a question in CreateQuestion'))
+  // .then(data => {
+  //   console.log(data); 
+  //   setId(data);
+  //   return displayQuestionList("createQuestionList")
+  // }) 
+  // .then(() => doUpdateQuestionState( {id:getId(), state: "TRUE"}))
+  // .then(() => displayQuestionList("updateQuestionStateList"))
+  // .then(() => doDeleteQuestionId(getId()))
+  // .then(() => displayQuestionList("deleteQuestionIdList"))
+  // .then(() => doCreateTaskPairs( {quid: 1, task1: 55, task2: 54, selHist1:">=", selHist2:">", ts:Date.now()} )
+  // .then(() => dispalyTaskPairsList("createTaskPairsList", 1))
+  // doCreateQTask( {quid: 1, taskId: 54, state: 3 } )
+  // .then(() => doCreateQTask( {quid: 1, taskId: 55, state: 0 } ))
+  // .then(() => doCreateQTask( {quid: 1, taskId: 56, state: 0 } ))
+  // .then(() => displayQTaskList("createQTaskList",1))
+  doCreateQuestionTaskPairs(27)
   .catch(error => {
     console.log("Error in promise chain: ", error);
   })
