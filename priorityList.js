@@ -41,7 +41,7 @@ loadEventListeners();
 // Load all event listeners
 function loadEventListeners() {
   // DOM load event
-  document.addEventListener('DOMContentLoaded', loadFromLS);
+  document.addEventListener('DOMContentLoaded', loadFromSQL);
   itemList.addEventListener('click',listItemAction);
   doneBtn.addEventListener('click', goToQuestionOTDay);
   taskListBtn.addEventListener('click', goToTaskList);
@@ -74,11 +74,20 @@ function listItemAction(ev) {
 }
 
 function toggleTaskVisibility(ev) {
-  if (ev.target.textContent === 'visibility') {
+  let vis = 0;
+  let id = parseInt( ev.target
+    .parentElement
+    .previousElementSibling
+    .firstElementChild.id
+  );
+if (ev.target.textContent === 'visibility') {
     ev.target.textContent = 'visibility_off';
+    vis = 1;
   } else {
     ev.target.textContent = 'visibility';
+    vis = 0;
   }
+  storeVisibilityInSQL(id, vis)
   ev.preventDefault();
 }
 
@@ -131,20 +140,39 @@ function itemSelected(ev) {
         aTask.sel = 0;
         ev.target.textContent = 'check_box_outline_blank';
         ev.target.parentElement.parentElement.querySelector('.rank-item').textContent = '';
-        removeTaskFromLS(aTask.id);
+        removeQTaskFromSQL(aTask.id);
       } else {
         aTask.sel = 1;
         ev.target.textContent = 'check';
         ev.target.parentElement.parentElement.querySelector('.rank-item').innerHTML = 'no votes&nbsp;&nbsp;&nbsp';
-        storeTaskInLS(aTask.id);
+        storeQTaskInSQL(aTask.id, 0);
       }
     }
     ev.preventDefault();
   }
 }
 
+function storeVisibilityInSQL(id,newState) {
+  storeQTaskInSQL(id, newState)
+  .catch(error => console.log(error))
+}
+
+function storeQTaskInSQL(id, state) {
+  return new Promise ((resolve, reject) => {
+    let params = {quid: questionID, taskId: id, state: state };
+    let paramStr = JSON.stringify(params);
+    let bodyStr = "query=createQTask&paramStr=" + paramStr + "&mode=active&x=" + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+      .then(data => resolve(data))
+      .catch(error => {
+          console.log(error);
+          reject(error);
+      });
+  })
+}
+
 // save task to Local Storage
-function storeTaskInLS(id) {
+function storeTaskInLS(id) {S
   let queStr = localStorage.getItem('questions');
   let tempQues;
   if (queStr === null) {
@@ -152,13 +180,29 @@ function storeTaskInLS(id) {
   } else {
     tempQues = JSON.parse(queStr);
   }
+  // if I remember, the following adds id, converts to a set and back to an array
+  // this has the side effect of removing id again if it happens to be a duplicate
   tempQues[questionIndex].tasks.push(id);
   const tTask = [... new Set(tempQues[questionIndex].tasks)];
   tempQues[questionIndex].tasks = tTask;
-  // this does not change but saving her for reloading selected later
+  // this does not change but saving here for reloading selected later
   localStorage.setItem('selectedQuestionID',
     JSON.stringify(questionID.toFixed(0)));
   localStorage.setItem('questions', JSON.stringify(tempQues));
+}
+
+function removeQTaskFromSQL(id) {
+  return new Promise ((resolve, reject) => {
+    let params = {quid: questionID, taskId: id };
+    let paramStr = JSON.stringify(params);
+    let bodyStr = "query=deleteQTask&paramStr=" + paramStr + "&mode=active&x=" + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+      .then(data => resolve(data))
+      .catch(error => {
+          console.log(error);
+          reject(error);
+      });
+  })
 }
 
 // Remove task from Local Storage
@@ -187,57 +231,77 @@ function setQuestionUI() {
   }
 }
 
-function loadTasksFromSQL() {
-  let bodyStr = "query=taskList&state=FALSE&mode=none&x=" + randValue;
-
-  request({url: "model/getData.php", body: bodyStr, headers: myHeader})
-    .then(data => {
-      // console.log(data.substring(3,7));
-      if (data.substring(3,8) === "tasks") {
-        let result = JSON.parse(data)[0];
-        tasks = result.tasks;
-        // lastTaskID = result.lastId; // This returned value is not needed here
-        tasks.forEach(task => { task.id = parseInt(task.id) });
-      } else {
-        console.log(data);
-      }
-    })
-    .catch(error => { 
-      console.log(error);
-      loadTasksFromLS()
-    })
-    .finally(() => {
-      populateTaskPairs();
-    });
-}
-
-function loadTasksFromLS() {
-  let tasksStr = localStorage.getItem('tasksBundle');
-  if (tasksStr === null) {
-    tasks = [];
-  } else {
-    tasksBundle = JSON.parse(tasksStr);
-    tasks = tasksBundle.tasks; // note: these are ALL tasks
-    // lastTaskID = tasksBundle.lastTaskID;
-  }  
-}
-
-function loadFromLS() {
-  let questionsStr = localStorage.getItem('questions');
-  if (questionsStr === null) {
-    goToQuestionList();
-  } else {
-    questions = JSON.parse(questionsStr);
-  }
+// for current question, determine ranks for each task  
+function populateTaskPairs() {
+  let pairs = currQue.taskPairs;
+  validPairs = 0; // reset count and recalculate
+  pairs.forEach(function(pair) {
+    let result = higherIDInPair(pair.pair);
+    let leftTask  = tasks.find((t) => (t.id === pair.pair[0].taskId) ? t : null);
+    let rightTask = tasks.find((t) => (t.id === pair.pair[1].taskId) ? t : null); 
+    // if either task is not in the tasks, it is not a valid pair. Ignore or Remove?
+    if (leftTask !== null || rightTask !== null) {
+      // Add ALL the tasks from the pairs to the end of the task array.
+      // Duplicates are removed later
+      // currQue.tasks.push(leftTask.taskID);
+      // currQue.tasks.push(rightTask.taskID);
+      if (result != null)
+        validPairs++;
+        if (leftTask.id === result) {
+          if (leftTask.votes != null) {
+            leftTask.votes++;
+          } else {
+            leftTask.votes = 1;
+          }
+        }
+        if (rightTask.id === result) {
+          if (rightTask.votes != null) {
+            rightTask.votes++;
+          } else {
+            rightTask.votes = 1;
+          }
+        }
+    }
+  });
+  // Now remove the duplicates from the question's tasks array
+  // const tTasks = [... new Set(currQue.tasks)];
+  // currQue.tasks = tTasks;
+  setQuestionUI();
   
-  // Array.findIndex(function(cValue, ind, Arr), tValue)
-  questionIndex = questions.findIndex((q) => (q.questionID === questionID ));
-  currQue = questions[questionIndex];
-  loadTasksFromSQL();
+  // after determining vote counts for tasks, sort by votes and apply rank.
+  tasks.sort(function(a, b) {
+    //the following two tests fail once only for each instance of a and b
+    if(a.sel === undefined) {
+      a.sel =((currQue.tasks.findIndex((e) => e === a.id)) >= 0)?1:0;
+    }
+    if(b.sel === undefined) {
+      b.sel =((currQue.tasks.findIndex((e) => e === b.id)) >= 0)?1:0;
+    }
+    if (a.votes != null) {
+      if (b.votes != null) {
+        return b.votes - a.votes;
+      } else {
+        return -1;  // if a has votes then a over b.
+      }
+    } else if (b.votes != null) {
+      return 1; // if only b has votes then b higher than a
+    // not chosen on votes. What about selected?
+    } else {
+      return b.sel - a.sel;
+    }
+  });
+  let rank = 1;
+  tasks.forEach(function(task) {
+    if (task.votes > 0) {
+      rank += createLIHtml(task, rank, pairs.length);
+    } else {
+      createLIHtml(task,0,pairs.length);
+    }
+  });
 }
 
 // for current question, determine ranks for each task  
-function populateTaskPairs() {
+function populateTaskPairsSQL() {
   let pairs = currQue.taskPairs;
   validPairs = 0; // reset count and recalculate
   pairs.forEach(function(pair) {
@@ -304,6 +368,7 @@ function populateTaskPairs() {
     }
   });
 }
+
 
 function createLIHtml(task, rank, tot) {
   let inc = 0;
@@ -376,3 +441,153 @@ function higherIDInPair(pair) {
   }
   return null;
 }
+
+function loadFromSQL() {
+  loadQuestionFromSQL(questionID)
+  .then (() => loadTasksFromSQL())
+  .then (() => loadQtasksFromSQL(questionID))
+  .then (() => createTaskPairsInSQL(questionID))
+  .catch(error => console.log(error) ) 
+}
+
+function loadQuestionFromSQL(quid) {
+  return new Promise ((resolve, reject) => {
+    let bodyStr = "query=questionList&state=FALSE&mode=active&x=" + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+    .then(data => {
+      let res = JSON.parse(data)[0].questions;
+      let quest = res.find(item => parseInt(item.id) === quid);
+      if (quest !== undefined) {
+        currQue = {
+          question: quest.question, 
+          questionID: quest.id,
+          tasks: [],
+          taskPairs: []
+        }
+        resolve(quest.question);
+      } else {
+        // resolve as this just means no tasks have been selected yet
+        reject(`Question with id ${quid} not found in database.`);
+      }
+    })
+    .catch(error => {
+      console.log(error);
+      reject(error);
+    })
+  })
+}
+
+function loadQtasksFromSQL(quid) {
+  return new Promise ((resolve, reject) => {
+    let bodyStr = `query=QTaskList&quid=${quid}&mode=active&x=` + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+    .then(data => {
+      if (data.substring(0,1) !== "0") { 
+        let res = JSON.parse(data);
+        let qtasks = [];
+        let hidden = [];
+        res.forEach(item => {
+          let id = parseInt(item.taskId);
+          if (item.state === "0") {
+            qtasks.push(id);
+          } else if (item.state === "1") {
+            hidden.push(id);
+          }
+        })
+        currQue.tasks = qtasks;
+        currQue.hidden = hidden;
+        resolve("1");
+      } else {
+        // resolve as this just means no tasks have been selected yet
+        reject(`Question with id ${quid} not found in database.`);
+      }
+    })
+    .catch(error => {
+      console.log(error);
+      reject(error);
+    })
+  })
+}
+
+function loadTasksFromSQL() {
+  return new Promise ((resolve, reject) => {
+    let bodyStr = "query=taskList&state=FALSE&mode=active&x=" + randValue;
+    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+      .then(data => {
+        if (data.substring(3,8) === "tasks") {
+          let result = JSON.parse(data)[0];
+          tasks = result.tasks;
+          tasks.forEach(task => { task.id = parseInt(task.id) });
+        } else {
+          console.log(data);
+        }
+        resolve(tasks.length);
+      })
+      .catch(error => { 
+        console.log(error);
+        loadTasksFromLS()
+      })
+  })
+}
+
+/* This function takes the provided quid, and calls a database
+  function that reads all the database qtask records
+  and creates a new database taskpair record for each pair of
+  tasks or updates an existing record if one is found. That function
+  then returns ONLY the appropriate taskpairs. Note that 
+  there may be some task pairs that have the correct quid but 
+  are NOT loaded / updated as they do not match the qtask records. 
+  These are retained for their history.
+  Currently qtask records must be deleted when deselected. 
+*/
+function createTaskPairsInSQL(quid) {
+  return new Promise ((resolve, reject) => {
+    let bodyStr = "query=createQuestionTaskPairs&quid=" + quid + "&mode=active&x=" + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+      .then(data => {
+        if (data.substring(0,1) === '0') { 
+          populateTaskPairs();
+          resolve(data); // likely means no pairs found
+        } else {
+          let ret = JSON.parse(data);
+          ret.forEach(a => {
+            a.pair[0].taskId=parseInt(a.pair[0].taskId);
+            a.pair[1].taskId=parseInt(a.pair[1].taskId);
+          })
+          currQue.taskPairs = ret;
+          populateTaskPairs();
+        }
+        resolve();
+      })
+      .catch(error => {
+          console.log(error);
+          reject(error);
+      });
+  })
+}
+
+function loadFromLS() {
+  let questionsStr = localStorage.getItem('questions');
+  if (questionsStr === null) {
+    goToQuestionList();
+  } else {
+    questions = JSON.parse(questionsStr);
+  }
+  
+  // Array.findIndex(function(cValue, ind, Arr), tValue)
+  questionIndex = questions.findIndex((q) => (q.questionID === questionID ));
+  currQue = questions[questionIndex];
+  loadTasksFromSQL();
+}
+
+function loadTasksFromLS() {
+  let tasksStr = localStorage.getItem('tasksBundle');
+  if (tasksStr === null) {
+    tasks = [];
+  } else {
+    tasksBundle = JSON.parse(tasksStr);
+    tasks = tasksBundle.tasks; // note: these are ALL tasks
+    // lastTaskID = tasksBundle.lastTaskID;
+  }  
+}
+
