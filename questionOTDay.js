@@ -225,6 +225,7 @@ function saveSelectMode2LS(mode) {
 function itemSelected(ev){
   if (ev.target.parentElement.classList.contains('select-item')) {
     let li;
+    let pairIdx = currQue.pairIndex;
     let selIndex = parseInt(ev.target.id);
     let selTask = currQue.taskPairs[currQue.pairIndex].pair[selIndex];
     let otherIndex = selIndex ? 0 : 1;
@@ -241,7 +242,7 @@ function itemSelected(ev){
         selTask.selHist += '>';
       }
     }
-    storeSelHistoryInSQL();
+    storeSelHistoryInSQL(pairIdx);
     refreshPairUI();
   }
 }
@@ -515,9 +516,9 @@ function pairAlreadyExists(aPair,left,right) {
 }
 
 // For sanity, save state for any changes
-function storeSelHistoryInSQL() {
+function storeSelHistoryInSQL(idx) {
   return new Promise ((resolve, reject) => {
-    let aPair = currQue.taskPairs[currQue.pairIndex].pair;
+    let aPair = currQue.taskPairs[idx].pair;
     let params = {
       quid: questionID, 
       task1: aPair[0].taskId, 

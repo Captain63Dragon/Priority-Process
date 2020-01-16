@@ -99,7 +99,23 @@ function doTaskPairList($connection, $table, $quid) {
 }
 
 function doQTaskList($connection, $table, $quid) {
-  // SELECT quid, taskId, state FROM qtask WHERE quid=1
+  // QTask table is a dynamic table that depends on tasks being active
+  // ie. done=0. Remove all the completed or deleted tasks first.
+  $myQu = 'SELECT quid, taskId FROM qtask ' .
+  'LEFT JOIN tasks t ON taskId=t.id ' . 
+  'WHERE quid=' . $quid . ' AND t.done=1';
+  cLog($myQu . "<br>\n");
+  $query = mysqli_query($connection, $myQu);
+  // build rest of where clause for the update query below
+  $myQu = 'UPDATE qtask SET state=3 WHERE quid=' . $quid . ' AND ';
+  while ($row = mysqli_fetch_assoc($query)) {
+    $myQu = $myQu . ' taskId=' . $row['taskId']. ' OR';
+  }
+  $myQu = $myQu . ' taskId=-999'; // use up final OR with bogus search
+  cLog($myQu . "<br>\n");
+  $query = mysqli_query($connection, $myQu);
+  // not interested in the results of this update. Now the actual qtask query!
+
   $myQu = "SELECT quid, taskId, state FROM " . 
   $table . " WHERE quid=" . $quid;
   cLog("the query I've built is: " . $myQu . "<br>\n");
