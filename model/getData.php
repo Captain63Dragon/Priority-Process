@@ -12,7 +12,6 @@
       createQuestion
       updateQuestionState
       deleteQuestionId
-      createTaskPairs
       updateQTask
       updateTaskPair
     createTask takes an URLencoded task string: taskStr=like%20so
@@ -345,13 +344,8 @@ function doDelete($connection, $table, $id) {
       $con = openDatabase();
       doUpdateQuestionState($con, $questionTable, $id, $state);
     break;
-    case "createTaskPairs":
-    case "updateQTask":
-    case "updateTaskPair":
+    default:
       cLog('case ' . $function . ' requested,br />\n');
-    break;
-  default:
-    cLog("case not recognized <br />");
   }
   // mysqli_close($con);
 ?>

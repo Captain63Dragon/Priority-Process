@@ -272,8 +272,8 @@ switch ($function) {
     cLog("taskPairList question Id parameter " . $quid . " received<br>\n");
     doTaskPairList($con, $taskPairTable, $quid);
   break;
-  case "createTaskPair":
-    cLog("case createTaskPairs selected<br>\n");
+  case "createATaskPair":
+    cLog("case createATaskPairs selected<br>\n");
     $paramStr = $_POST["paramStr"];
     cLog("task pairs parameter: " . $paramStr . " received<br>\n");
     $params = json_decode($paramStr);

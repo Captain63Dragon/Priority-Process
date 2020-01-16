@@ -400,7 +400,7 @@ function displayTaskPairsList(listClass, quid) {
 function doCreateTaskPairs(params) {
   return new Promise ((resolve, reject) => {
     let paramStr = JSON.stringify(params);
-    let bodyStr = "query=createATaskPair&paramStr=" + paramStr + "&mode=active&x=" + randValue;
+    let bodyStr = "query=createATaskPair&paramStr=" + paramStr + "&mode=DEBUG&x=" + randValue;
     request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
       .then(data => {
         // console.log(data.substring(3,7));
@@ -550,13 +550,13 @@ function loadDoc() {
   // .then(() => displayQuestionList("updateQuestionStateList"))
   // .then(() => doDeleteQuestionId(getId()))
   // .then(() => displayQuestionList("deleteQuestionIdList"))
-  // .then(() => doCreateTaskPairs( {quid: 1, task1: 55, task2: 54, selHist1:">=", selHist2:">", ts:Date.now()} )
-  // .then(() => dispalyTaskPairsList("createTaskPairsList", 1))
+  doCreateTaskPairs( {quid: 28, task1: 54, task2: 55, selHist1:"", selHist2:">", ts:1579147824168} )
+  .then(() => displayTaskPairsList("createTaskPairsList", 1))
   // doCreateQTask( {quid: 1, taskId: 54, state: 3 } )
   // .then(() => doCreateQTask( {quid: 1, taskId: 55, state: 0 } ))
   // .then(() => doCreateQTask( {quid: 1, taskId: 56, state: 0 } ))
   // .then(() => displayQTaskList("createQTaskList",1))
-  doCreateQuestionTaskPairs(27)
+  // .then(() => doCreateQuestionTaskPairs(27)
   .catch(error => {
     console.log("Error in promise chain: ", error);
   })

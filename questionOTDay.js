@@ -43,7 +43,7 @@ if (paramName.toLowerCase() === 'quid') {
 
 // Load all event listeners
 loadEventListeners();
-loadFromLS();
+loadFromSQL();
 
 function loadEventListeners() {
   // handle click on the checkbox icon associated with the mode prompt
@@ -59,27 +59,29 @@ function loadEventListeners() {
 }
 
 function loadTasksFromSQL() {
-  let bodyStr = "query=taskList&state=FALSE&mode=none&x=" + randValue;
-
-  request({url: "model/getData.php", body: bodyStr, headers: myHeader})
-  .then(data => {
-    // console.log(data.substring(3,8));
-    if (data.substring(3,8) === "tasks") {
-      let result = JSON.parse(data)[0];
-      tasks = result.tasks;
-      tasks.forEach(task => { task.id = parseInt(task.id) });
-      createTaskPairsArray(currQue.tasks);
-      setQuestionUI();
+  return new Promise ((resolve,reject) => {
+    let bodyStr = "query=taskList&state=FALSE&mode=none&x=" + randValue;
+    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    .then(data => {
+      // console.log(data.substring(3,8));
+      if (data.substring(3,8) === "tasks") {
+        let result = JSON.parse(data)[0];
+        tasks = result.tasks;
+        tasks.forEach(task => { task.id = parseInt(task.id) });
       } else {
-      console.log(data);
-    }
+        console.log(data);
+      }
+      resolve(tasks.length);
+    })
+    .catch(error => {
+        console.log(error);
+        reject(error);
+    });
   })
-  .catch(error => {
-      console.log(error);
-  });
-};
+}
 
-function loadFromLS() {
+function loadFromSQL() {
+  // load local storage values for display modes
   if(localStorage.getItem('selectMode') === null) {
     // use the default as defined above
   } else {
@@ -97,34 +99,113 @@ function loadFromLS() {
       setRapidModeUI();
     }
   }
-  let questionsStr = localStorage.getItem('questions');
-  if (questionsStr === null) {
-    // must have questions. Load question list page to generate or select a question.
-    goToQuestionList(); 
-  } else {
-    questions = JSON.parse(questionsStr);
-  }
-
-  // Array.findIndex(function(cValue, ind, Arr), tValue)
-  if (typeof questionID == 'number') {
-    questionIndex = questions.findIndex((q) => (q.questionID === questionID )); 
-  } else {
-    questionIndex = 0;
-  }
-  currQue = questions[questionIndex];
-  if (true) {
-    loadTasksFromSQL();
-  } else {
-    let tasksStr = localStorage.getItem('tasksBundle');
-    if (tasksStr === null) {
-      tasks = []; 
-    } else {
-      let tasksBundle = JSON.parse(tasksStr);
-      tasks = tasksBundle.tasks;
+  // .. then load data from db
+  loadTasksFromSQL()
+  .then (() => loadQuestionFromSQL(questionID))
+  .then(questionStr => {
+    if (questionStr === null) {
+      // must have questions. Load question list page to generate or select a question.
+      goToQuestionList(); 
     }
-    createTaskPairsArray(currQue.tasks);
-    setQuestionUI();
-  }
+    return loadQtasksFromSQL(questionID);
+  })
+  .then(() => loadQtasksFromSQL(questionID))
+  .then(() => createTaskPairsInSQL(questionID))
+  .catch(error => console.log(error)) 
+  .finally(() => { 
+    setQuestionUI() 
+  })
+}
+
+function loadQuestionFromSQL(quid) {
+  return new Promise ((resolve, reject) => {
+    let bodyStr = "query=questionList&state=FALSE&mode=active&x=" + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+    .then(data => {
+      let res = JSON.parse(data)[0].questions;
+      let quest = res.find(item => parseInt(item.id) === quid);
+      if (quest !== undefined) {
+        currQue = {
+          question: quest.question, 
+          questionID: quest.id,
+          tasks: [],
+          taskPairs: [],
+        }
+        resolve(quest.question);
+      } else {
+        // resolve as this just means no tasks have been selected yet
+        reject(`Question with id ${quid} not found in database.`);
+      }
+    })
+    .catch(error => {
+      console.log(error);
+      reject(error);
+    })
+  })
+}
+
+function loadQtasksFromSQL(quid) {
+  return new Promise ((resolve, reject) => {
+    let bodyStr = `query=QTaskList&quid=${quid}&mode=active&x=` + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+    .then(data => {
+      if (data.substring(0,1) !== "0") { 
+        let res = JSON.parse(data);
+        let qtasks = [];
+        res.forEach(item => {
+          let id = parseInt(item.taskId);
+          if (item.state === "0") {
+            qtasks.push(id);
+          } // ignores hidden tasks completely
+        })
+        currQue.tasks = qtasks;
+        console.assert(tasks.length > 0, "No tasks selected in this question.");
+        currQue.pairIndex = 0;
+        resolve("1");
+      } else {
+        // resolve as this just means no tasks have been selected yet
+        reject(`Question with id ${quid} not found in database.`);
+      }
+    })
+    .catch(error => {
+      console.log(error);
+      reject(error);
+    })
+  })
+}
+
+/* This function takes the provided quid, and calls a database
+  function that reads all the database qtask records
+  and creates a new database taskpair record for each pair of
+  tasks or updates an existing record if one is found. That function
+  then returns ONLY the appropriate taskpairs. Note that 
+  there may be some task pairs that have the correct quid but 
+  are NOT loaded / updated as they do not match the qtask records. 
+  These are retained for their history.
+  Currently qtask records must be deleted when deselected. 
+*/
+function createTaskPairsInSQL(quid) {
+  return new Promise ((resolve, reject) => {
+    let bodyStr = "query=createQuestionTaskPairs&quid=" + quid + "&mode=active&x=" + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+      .then(data => {
+        if (data.substring(0,1) === '0') { 
+          resolve(data); // likely means no pairs found
+        } else {
+          let ret = JSON.parse(data);
+          ret.forEach(a => {
+            a.pair[0].taskId=parseInt(a.pair[0].taskId);
+            a.pair[1].taskId=parseInt(a.pair[1].taskId);
+          })
+          currQue.taskPairs = ret;
+        }
+        resolve();
+      })
+      .catch(error => {
+          console.log(error);
+          reject(error);
+      });
+  })
 }
 
 function goToPriorityList(e) {
@@ -160,7 +241,7 @@ function itemSelected(ev){
         selTask.selHist += '>';
       }
     }
-    storeQuestionInLS();
+    storeSelHistoryInSQL();
     refreshPairUI();
   }
 }
@@ -176,6 +257,7 @@ function toggleSelectMode(e){
   }
   saveSelectMode2LS(selectMode);
 }
+
 function setSequentialModeUI() {
   let checkIcon = 'check_box_outline_blank';
   let html = `<i class="material-icons" style="font-size:20px">${checkIcon}</i>`;
@@ -219,19 +301,18 @@ function setQuestionUI() {
 
 // add Task pair from question to UI elements
 function addTaskPairs(que) {
-  let cp = que.pairIndex;
+  let cp = que.pairIndex === undefined ? 0 : que.pairIndex;
   let match;
-  console.log(tasks);
   console.assert(cp <= que.taskPairs.length,'Invalid pair index. Bigger than array!');
   console.assert(cp >= 0, 'Invalid pair index. Less than zero!');
-  let id = que.taskPairs[cp].pair[0].taskID;
+  let id = que.taskPairs[cp].pair[0].taskId;
   let hist = que.taskPairs[cp].pair[0].selHist;
   if ((match = findTaskID(tasks,id)) !== null ) {
     addTask(match.task, (hist === '') ? false : (hist.slice(-1,)) === ">", 0);
   } else {
     alert(`Task with id ${id} not found in question's task list`);
   }
-  id = que.taskPairs[cp].pair[1].taskID;
+  id = que.taskPairs[cp].pair[1].taskId;
   hist = que.taskPairs[cp].pair[1].selHist;
   if ((match = findTaskID(tasks,id)) !== null ) {
     addTask(match.task, (hist === '') ? false : (hist.slice(-1,)) === ">", 1);
@@ -292,7 +373,7 @@ function nextPairUI() {
   refreshPairUI();
   }
   
-  function refreshPairUI() {  
+function refreshPairUI() {  
   // remove old pair
   while(itemList.firstChild) {
     itemList.removeChild(itemList.firstChild);
@@ -375,14 +456,14 @@ function createTaskPairsArray(tasks) {
   // first remove pairs containing task ids that are nolonger part of this
   // question. This will lose the history for these. Oh well.
   currQue.taskPairs.forEach(function(aPair, index){
-    let res1 = taskIDs.findIndex((id) => aPair.pair[0].taskID === id);
-    let res2 = taskIDs.findIndex((id) => aPair.pair[1].taskID === id);
+    let res1 = taskIDs.findIndex((id) => aPair.pair[0].taskId === id);
+    let res2 = taskIDs.findIndex((id) => aPair.pair[1].taskId === id);
     // console.log(res1, res2, aPair);
     if (res1 >= 0 && res2 >= 0) {
       // console.log('Adding good pair '+ JSON.stringify(currQue.taskPairs[index]));
       goodPair.push(aPair);
     } else {
-      dirty = true; // this pair is being removed, to need to save update
+      dirty = true; // this pair is being removed, so need to save update
     }
   });
 
@@ -394,16 +475,18 @@ function createTaskPairsArray(tasks) {
   while (i < tasks.length) {
     j=0;
     while (j < i) {
-      let res = currQue.taskPairs.find(function(aPair) {
-        return pairAlreadyExists(aPair,tasks[i],tasks[j]);
-      });
+      let res = currQue.taskPairs.find(aPair => 
+          pairAlreadyExists(aPair,tasks[i],tasks[j]));
       if (!res) {
-      //   console.log('found match for ' +tasks[i] + ' ' + tasks[j]);
-      // } else { // not found, so add the pair
         // create pair with id address, tasks[i] and tasks[j]
-        let str = `{"pair": [{"taskID": ${tasks[i]}, "selHist": ""}, {"taskID": ${tasks[j]}, "selHist": ""}]}`;
+        let aPair = {
+          pair: [ 
+            { taskID: tasks[i], selHist: ""}, 
+            { taskID: tasks[j], selHist: ""}
+          ]
+        };
         // console.log('Adding '+str);
-        currQue.taskPairs.push(JSON.parse(str));
+        currQue.taskPairs.push(aPair);
         dirty = true; // new pair added; save update
       }
       j++;
@@ -419,12 +502,12 @@ function createTaskPairsArray(tasks) {
 // Pairs may be left-right or right-left so check both.
 // for now, the order does not matter
 function pairAlreadyExists(aPair,left,right) {
-  if (aPair.pair[0].taskID === left) {
-    if (aPair.pair[1].taskID === right) {
+  if (aPair.pair[0].taskId === left) {
+    if (aPair.pair[1].taskId === right) {
       return true;
     } 
-  } else if (aPair.pair[1].taskID === left){
-    if (aPair.pair[0].taskID === right) {
+  } else if (aPair.pair[1].taskId === left){
+    if (aPair.pair[0].taskId === right) {
       return true;
     }
   }
@@ -432,15 +515,25 @@ function pairAlreadyExists(aPair,left,right) {
 }
 
 // For sanity, save state for any changes
-function storeQuestionInLS(question, id) {
-  let str = localStorage.getItem('questions');
-  let tempQues;
-  if (str === null) {
-    tempQues = [];
-  } else{
-    tempQues = JSON.parse(str);
-  }
-  tempQues[questionIndex].taskPairs = currQue.taskPairs;
-  tempQues[questionIndex].pairIndex;
-  localStorage.setItem('questions', JSON.stringify(tempQues));
+function storeSelHistoryInSQL() {
+  return new Promise ((resolve, reject) => {
+    let aPair = currQue.taskPairs[currQue.pairIndex].pair;
+    let params = {
+      quid: questionID, 
+      task1: aPair[0].taskId, 
+      task2: aPair[1].taskId,
+      selHist1: aPair[0].selHist,
+      selHist2: aPair[1].selHist,
+      ts: Date.now()
+    }
+    console.log(params);
+    let paramStr = JSON.stringify(params);
+    let bodyStr = "query=createATaskPair&paramStr=" + paramStr + "&mode=active&x=" + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
+      .then(data => resolve(data))
+      .catch(error => {
+          console.log(error);
+          reject(error);
+      });
+  })
 }
