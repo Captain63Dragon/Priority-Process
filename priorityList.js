@@ -1,12 +1,18 @@
 import { request } from './request.js';
 
 // housekeeping variables.
-
-// Define UI variables.
 // const isDebug = true;
 const isDebug = false;
 let randValue = Math.random();
 if (isDebug) { randValue = -1; }
+let tasksBundle = null;
+let questions;
+let questionIndex = null;
+let currQue;
+let tasks;
+let validPairs = 0;
+
+// Define UI variables.
 const taskList = document.querySelector('.collection');
 const questionStatement = document.querySelector('#question-statement');
 const progressDisplay = document.querySelector('#question-amt-complete');
@@ -17,12 +23,6 @@ const questionBtn = document.querySelector('.goto-qlist');
 const visModeCheck = document.querySelector('.visibility-mode');
 const myHeader = {"Content-type": "application/x-www-form-urlencoded"};
 
-let tasksBundle = null;
-let questions;
-let questionIndex = null;
-let currQue;
-let tasks;
-let validPairs = 0;
 let [paramName, questionID] = location.search.substring(1).split('=');
 if (paramName.toLowerCase() === 'quid') {
   // if ID is not a number, this will return index 0, which should be fine.
@@ -76,7 +76,6 @@ function listItemAction(ev) {
 }
 
 function toggleTaskVisibility(ev) {
-  let vis = 0;
   let id = parseInt( ev.target
     .parentElement
     .previousElementSibling
@@ -84,12 +83,11 @@ function toggleTaskVisibility(ev) {
   );
 if (ev.target.textContent === 'visibility') {
     ev.target.textContent = 'visibility_off';
-    vis = 1;
+    storeQTaskInSQL(id, 1)
   } else {
     ev.target.textContent = 'visibility';
-    vis = 0;
+    removeQTaskFromSQL(id); // remove avoids accidental promotion to selected
   }
-  storeVisibilityInSQL(id, vis)
   ev.preventDefault();
 }
 
@@ -154,11 +152,6 @@ function itemSelected(ev) {
     }
     ev.preventDefault();
   }
-}
-
-function storeVisibilityInSQL(id,newState) {
-  storeQTaskInSQL(id, newState)
-  .catch(error => console.log(error))
 }
 
 function storeQTaskInSQL(id, state) {
@@ -247,8 +240,8 @@ function populateTaskPairs() {
     if (leftTask !== null || rightTask !== null) {
       // Add ALL the tasks from the pairs to the end of the task array.
       // Duplicates are removed later
-      // currQue.tasks.push(leftTask.taskID);
-      // currQue.tasks.push(rightTask.taskID);
+      // currQue.tasks.push(leftTask.taskId);
+      // currQue.tasks.push(rightTask.taskId);
       if (result != null)
         validPairs++;
         if (leftTask.id === result) {
@@ -320,8 +313,8 @@ function populateTaskPairsSQL() {
   validPairs = 0; // reset count and recalculate
   pairs.forEach(function(pair) {
     let result = higherIDInPair(pair.pair);
-    let leftTask  = tasks.find((t) => (t.id === pair.pair[0].taskID) ? t : null);
-    let rightTask = tasks.find((t) => (t.id === pair.pair[1].taskID) ? t : null); 
+    let leftTask  = tasks.find((t) => (t.id === pair.pair[0].taskId) ? t : null);
+    let rightTask = tasks.find((t) => (t.id === pair.pair[1].taskId) ? t : null); 
     // if either task is not in the tasks, it is not a valid pair. Ignore or Remove?
     if (leftTask !== null || rightTask !== null) {
       // Add ALL the tasks from the pairs to the end of the task array.
@@ -401,7 +394,6 @@ function createLIHtml(task, rank, tot) {
   link = document.createElement('a');
   link.className = 'visible-item secondary-content';
   link.href ='#';
-  console.log(rank,link,li);
   if (rank < 0) { 
     link.innerHTML = '<i class="material-icons">visibility_off</i>&nbsp; ';
     if (rank === -2) {
@@ -454,16 +446,16 @@ function rankStr (rank) {
 // return the ID of the higher priority of the pair and null if no priority yet.
 function higherIDInPair(pair) {
   // Note: In this case, the pair is just the 2 element array of objects.
-  // eg: {taskID: xx, selHist: ''} 
+  // eg: {taskId: xx, selHist: ''} 
   let left = pair[0];
   let right = pair[1];
   if ((left.selHist.slice(-1,) === '>') &&
       (right.selHist.slice(-1,) !== '>')) {
-    return left.taskID;
+    return left.taskId;
   }
   if ((right.selHist.slice(-1,) === '>') &&
       (left.selHist.slice(-1,) !== '>')) {
-    return right.taskID;
+    return right.taskId;
   }
   return null;
 }
