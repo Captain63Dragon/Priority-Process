@@ -225,7 +225,7 @@ function doDelete($connection, $table, $id) {
   function doDeleteQuestion($connection, $table, $id) {
     cLog("do the question delete function<br>\n");
     if ($id == -1) {
-      $myQu = "DELETE FROM " . $table . " WHERE archive = FALSE" ;
+      $myQu = "DELETE FROM " . $table . " WHERE archived = FALSE" ;
     } else {
       $myQu = "DELETE FROM " . $table . " WHERE id = " . $id;
     }
@@ -248,7 +248,7 @@ function doDelete($connection, $table, $id) {
   function doUpdateQuestionState($connection, $table, $id, $newState) {
     cLog("do the Question Update function<br>");
     if ($id == -1) {
-      $myQu = 'UPDATE priority.' . $table . ' SET archived=' . $newState . ' where arcived = FALSE';
+      $myQu = 'UPDATE priority.' . $table . ' SET archived=' . $newState . ' where archived = FALSE';
     } else {
       $myQu = 'UPDATE priority.' . $table . ' SET archived=' . $newState . ' where id =' . $id;
     }
@@ -336,6 +336,11 @@ function doDelete($connection, $table, $id) {
       cLog("case deleteQuestionId for id " . $id . " selected <br />");
       $con = openDatabase();
       doDeleteQuestion($con, $questionTable, $id);  
+    break;
+    case "deleteAllQuestions":
+      $id= -1;
+      $con = openDatabase();
+      doDeleteQuestion($con, $questionTable, $id);
     break;
     case "updateQuestionState":
       $id = $_POST["id"];

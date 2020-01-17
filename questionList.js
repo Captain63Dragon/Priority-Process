@@ -119,20 +119,18 @@ function storeQuestionInLS(question, id) {
   localStorage.setItem('selectedQuestionID', parseInt(questionID));
 }
 
+
+
 // Clear Questions buttion
 function clearQuestions() {
-  let questions = localStorage.getItem('questions');
-  // if local storage is not emty or the screen has a question..
-  if (questions != null || questionList.firstChild != null) {
-    questions = JSON.parse(questions);
-    if (questions != null && Array.isArray(questions)) {
-      if (confirm('Are you sure you want to remove ALL questions?')) {
-        while(questionList.firstChild) {
-          questionList.removeChild(questionList.firstChild);
-        }
-        clearQuestionsFromLS(); // todo: mark all questions inactive
+  if (confirm('Are you sure you want to remove ALL questions?')) {
+    removeQuestionFromSQL(-1)
+    .then(() => {
+      while(questionList.firstChild) {
+        questionList.removeChild(questionList.firstChild);
       }
-    }
+    })
+    .catch(error => console.log(error))
   }
 }
 
@@ -244,15 +242,21 @@ function selectQuestion(e) {
   // storeQuestionInLS(); I don't think this is needed anymore.
   goToPriorityList(null);
 }
+
+// Remove question(s) from database. Note if quid = -1, deletes all active questions
 function removeQuestionFromSQL(quid){
   return new Promise ((resolve, reject) => {
-    let bodyStr = "query=deleteQuestionId&id=" + quid + "&mode=active&x=" + randValue;
+    let bodyStr = "query=updateQuestionState&id=" + quid + "&state=TRUE&mode=active&x=" + randValue;
     request({url: "model/getData.php", body: bodyStr, headers:myHeader})
       .then(data => {
+        console.log(data);
         let result = JSON.parse(data);
         if (result.id >= 0) { // id of deleted record returned..
           // console.log (`deleted id: ${result.id} found and deleted<br>\n`);
           resolve(result.id);
+        } else if (result.num >= 1) {
+          // console.log(`deleted all questions [${result.num}]`);
+          resolve(quid) 
         } else {
           reject("Deletion returned code: " + result.id);
         }
