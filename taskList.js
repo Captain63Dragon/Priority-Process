@@ -16,9 +16,6 @@ const questionListBtn = document.querySelector('.goto-question-list');
 const clearBtn = document.querySelector('.clear-tasks');
 const filter = document.querySelector('#filter');
 const taskInput = document.querySelector('#task');
-const link2Download = document.querySelector('.link-to-download');
-const exportFile = document.querySelector('#export');
-let defaultFilename = 'export.json';
 
 // ------------------ Controller functions ------------------//
 
@@ -39,10 +36,6 @@ function loadEventListeners() {
   clearBtn.addEventListener('click', clearTasks);
   // Filter tasks event
   filter.addEventListener('keyup',filterTasks);
-  // Export data to a download file
-  link2Download.addEventListener('click', exportLStoFile);
-  // Export filename change
-  exportFile.addEventListener('keyup', exportFileChanged);
 }
 
 // -------------------- Model functions ---------------------//
@@ -325,46 +318,6 @@ function populateTasks(tasks) {
     // Append li to ul
     taskList.appendChild(li);
   });
-}
-
-// Export filename changed  - this may not be necessary anymore. 
-// Export from database is more likely or perhaps a list of canned reports.
-function exportFileChanged(e) {
-  let newFile = e.target.value;
-  if(newFile != null && newFile != '') {
-    if(newFile.endsWith('.json')) {
-      // console.log(newFile + ' ends with .json already')
-    } else {
-      newFile += '.json';
-    }
-    link2Download.download=newFile;
-  } else {
-    link2Download.download=defaultFilename;
-  }
-}
-
-// Export LS data to a file - this may not be necessary anymore. 
-// Export from database is more likely or perhaps a list of canned reports.
-function exportLStoFile() {
-  const tb = JSON.parse(localStorage.getItem('tasksBundle'));
-  const q = JSON.parse(localStorage.getItem('questions'));
-  const lquid = JSON.parse(localStorage.getItem('lastQuestionID'));
-  if (tb == null || q == null) {
-    alert('Could not find LocalStorage data. No file created.');
-  } else {
-    // lquid = (lquid == null) ?  q[0].questionID : lquid;
-    const priorityData = {
-      tasksBundle:tb,
-      questions: q,
-      lastQuestionID: lquid}; // note, may be null. Todo: read will have to fix this
-    const content = JSON.stringify(priorityData);
-    const contentType='text/plain';
-    let fileName = link2Download.download;
-    let file = new Blob([content], {type: contentType});
-
-    link2Download.href = URL.createObjectURL(file);
-    link2Download.download = fileName;
-  }
 }
 
 // Filter Tasks - currently just a pattern search
