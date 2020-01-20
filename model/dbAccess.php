@@ -47,7 +47,6 @@ function openDatabase() {
   return $connection;
 }
 
-
 function doQuestionList($connection, $table, $state) {
   if ($state == "TRUE") {
     $myQu = "SELECT question, id, archived FROM ". $table . " WHERE archived";
@@ -133,6 +132,8 @@ function doQTaskList($connection, $table, $quid) {
 
 function doCreateQuestionTaskPairs($connection, $quid) {
   cLog("do the create/update of Question task pairs<br>\n");
+  // create any taskPairs that do not already exist. If they already exist
+  // they were crated previously for this question.
   if($quid >= 0 ) {
     $myQu = "INSERT IGNORE INTO taskPair " . 
     "(quid, task1, task2) " .
@@ -149,9 +150,10 @@ function doCreateQuestionTaskPairs($connection, $quid) {
     } else {
       cLog ("Task Pair(s) created<br>\n");
     }
-    // now get full results. Note there may be task pairs with history we are keeping that
-    // are no longer selected for this question. It is assumed here that old qtask are deleted.
-    // if that is not the case, then those will need to be filtered here or by the caller.
+    // Now get full results. Note there may be task pairs with history we are
+    // keeping that are no longer selected for this question. Currently, if
+    // a task gets marked as done, the qtask is given a status of 3.
+    // This following code filters out inactive qtasks.
     $myQu = "SELECT task1, task2, historyMarks1, historyMarks2 FROM " . 
       "taskPair tp " .
       "LEFT JOIN qtask ql ON ql.taskId=tp.task1 " .
@@ -185,17 +187,6 @@ function doCreateQuestionTaskPairs($connection, $quid) {
     cLog("invalid id provided: quid: ". $quid . "<br>\n");
     echo "0";
   }
-  // INSERT INTO taskPair 
-  //   (quid, task1, task2) 
-  //   (select 
-  //     ql.quid, ql.taskId, qr.taskId 
-  //   from 
-  //     qtask as ql left join 
-  //     qtask as qr on ql.taskId < qr.taskId 
-  //     where ql.quid=1 and qr.taskId!=0
-  //   ) 
-  //   on duplicate key update historyTimes=CONCAT(historyTimes,"123456789");
-  // TODO: This will be useful in PriorityList.js program
 }  
 
 function doCreateATaskPair($connection,$table,$quid,$id1,$id2,$hist1,$hist2,$ts) {
