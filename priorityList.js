@@ -527,7 +527,7 @@ function loadQtasksFromSQL(quid) {
 function loadTasksFromSQL() {
   return new Promise ((resolve, reject) => {
     let bodyStr = "query=taskList&state=FALSE&mode=active&x=" + randValue;
-    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
       .then(data => {
         if (data.substring(3,8) === "tasks") {
           let result = JSON.parse(data)[0];

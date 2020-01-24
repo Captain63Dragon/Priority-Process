@@ -47,6 +47,112 @@ function openDatabase() {
   return $connection;
 }
 
+/******************************************************************************/  
+/*******************----> Task table related functions <----*******************/
+/******************************************************************************/
+  
+function doTaskList($connection, $table, $state) {
+  
+  // Query to run
+  if ($state === "TRUE") {
+    $myQu = "SELECT task, id, done FROM "  .  $table . " WHERE done";
+  } elseif ($state === "FALSE") {
+    $myQu = "SELECT task, id, done FROM "  .  $table . " WHERE NOT done";
+  } else { // otherwise any status
+    $myQu = "SELECT task, id, done FROM "  .  $table;
+  }
+  cLog("The query I've built is: " . $myQu . "<br />");
+  $query = mysqli_query($connection,  $myQu );
+  // Create empty array to hold query results
+  $someArray = [];
+
+  // Loop through query and push results into $someArray;
+  while ($row = mysqli_fetch_assoc($query)) {
+    array_push($someArray, [
+      'task'   => $row['task'],
+      'id' => $row['id'],
+      'done' => $row['done']
+    ]);
+  }
+  $myQu = "SELECT MAX(id) FROM "  .  $table . " LIMIT 1";
+  cLog("The query I've built is: " . $myQu . "<br />");
+  $query = mysqli_query($connection, $myQu);
+  $res = mysqli_fetch_all($query,MYSQLI_NUM);
+  $taskBundle =[];
+  array_push($taskBundle, [
+    'tasks' => $someArray,
+    'lastId' => $res[0][0]
+  ]);
+  // Convert the Array to a JSON String and echo it
+  $someJSON = json_encode($taskBundle);
+  echo $someJSON;
+}
+
+function doCreateTask($connection, $table, $taskStr) {
+  cLog("do the create/insert function <br />\n");
+  if ($taskStr == "") {
+    cLog("Invalid task name: " . $taskStr . "<br />\n");
+  } else {
+    $myQu = 'INSERT INTO '  .  $table . ' (task) VALUES ("' . $taskStr . '")';
+    $connection->query($myQu);
+    cLog("the query i've built: " . $myQu . "<br />\n" );
+    if ($connection->affected_rows != 1) {
+      cLog(mysqli_error($connection) . " Task not inserted <br />\n");
+      echo json_encode(['id' => -1]);
+    } else {
+      $newId = mysqli_insert_id($connection);
+      cLog("Task " . $newId . " inserted");
+      echo json_encode(['id' => $newId]);
+    }
+  }
+}
+
+function doUpdateTaskState($connection, $table, $id, $newState) {
+  cLog("do the Update function <br />");
+  if ($id == -1) {
+    $myQu = 'UPDATE priority.'  .  $table . ' SET done=' . $newState . ' where done = FALSE';
+  } else {
+    $myQu = 'UPDATE priority.'  .  $table . ' SET done=' . $newState . ' where id=' . $id;
+  }
+  cLog("the query I've built is: " . $myQu . "<br />");
+  $connection->query($myQu);
+  $rows = $connection->affected_rows;
+  if ($rows > 0) {
+    cLog("one or more records updated <br />\n");
+    if ($id >= 0) {
+      echo json_encode(['id' => $id, 'state' => $newState]);
+    } else {
+      echo json_encode(['num' => $rows]);
+    }
+  } else {
+    cLog(mysqli_error($connection) . "id not found or record(s) not updated<br />\n");
+    echo json_encode(['id' => -1]);
+  }
+}
+
+function doDelete($connection, $table, $id) {
+  cLog("do the delete function <br />\n");
+  if ($id == -1) { 
+    $myQu = "DELETE FROM "  .  $table . " WHERE done = FALSE";
+  } else {
+    $myQu = "DELETE FROM "  .  $table . " WHERE id = " . $id;
+  }
+  cLog("The query I've built is: " . $myQu . "<br />");
+  $connection->query($myQu);
+  $rows = $connection->affected_rows;
+  if ($rows > 0) {
+    cLog("one or more rows deleted<br>\n");
+    if ($id >= 0) {
+      echo json_encode(['id' => $id]);
+    } else {
+      echo json_encode(['num' => $rows]);
+    }
+  } else {
+    cLog(mysqli_error($connection) . " delete failed or id not found.<br>\n");
+    echo json_encode(['id' => -1]);
+  }
+}
+
 function doTaskDetail($connection, $table, $id) {
   if ($id >= 0) {
     $myQu = "SELECT task, category, description, entered, touched, done " . 
@@ -68,6 +174,10 @@ function doTaskDetail($connection, $table, $id) {
   } // else if -1, special case of .. what?
 }
 
+/******************************************************************************/  
+/*****************----> Question table related functions <----*****************/
+/******************************************************************************/
+  
 function doQuestionList($connection, $table, $state) {
   if ($state == "TRUE") {
     $myQu = "SELECT question, id, archived FROM ". $table . " WHERE archived";
@@ -97,6 +207,71 @@ function doQuestionList($connection, $table, $state) {
   ]);
   $someJSON = json_encode($questionArray);
   echo $someJSON;
+}
+
+function doCreateQuestion($connection, $table, $quStr) {
+  cLog("do the create/insert function<br>\n");
+  if ($quStr == "") {
+    cLog("Invalid question name:" . $quStr ."<br>\n");
+  } else {
+    $myQu = 'INSERT INTO ' . $table . ' (question) VALUES ("' . $quStr . '")';
+    cLog("The query I've built is: " . $myQu . "<br />");
+    $connection->query($myQu);
+    if ($connection->affected_rows != 1) {
+      cLog(mysqli_error($connection) . " Question not inserted<br>\n");
+      echo json_encode(['id' => -1]);
+    } else {
+      $newId = mysqli_insert_id($connection);
+      cLog("Question " . $newId . " inserted");
+      echo json_encode(['id' => $newId]);
+    }
+  } 
+}
+
+function doDeleteQuestion($connection, $table, $id) {
+  cLog("do the question delete function<br>\n");
+  if ($id == -1) {
+    $myQu = "DELETE FROM " . $table . " WHERE archived = FALSE" ;
+  } else {
+    $myQu = "DELETE FROM " . $table . " WHERE id = " . $id;
+  }
+  cLog("The query I've built is: " . $myQu . "<br>");
+  $connection->query($myQu);
+  $rows = $connection->affected_rows;
+  if ($rows > 0) {
+    cLog("one or more rows deleted<br>\n");
+    if ($id >= 0) {
+      echo json_encode(['id' => $id]);
+    } else {
+      echo json_encode(['num' => $rows]);
+    }
+  } else {
+    cLog(mysqli_error($connection) . " delete failed or id not found.<br>\n");
+    echo json_encode(['id' => -1]);
+  }
+}
+
+function doUpdateQuestionState($connection, $table, $id, $newState) {
+  cLog("do the Question Update function<br>");
+  if ($id == -1) {
+    $myQu = 'UPDATE priority.' . $table . ' SET archived=' . $newState . ' where archived = FALSE';
+  } else {
+    $myQu = 'UPDATE priority.' . $table . ' SET archived=' . $newState . ' where id =' . $id;
+  }
+  cLog("the query I've built is: " . $myQu . "<br>\n");
+  $connection->query($myQu);
+  $rows = $connection ->affected_rows;
+  if ($rows > 0) {
+    cLog("one or more records updated<br>\n");
+    if ($id > 0) {
+      echo json_encode(['id' => $id, 'state' => $newState]);
+    } else {
+      echo json_encode(['num' => $rows]);
+    }
+  } else {
+    cLog(mysqli_error($connection) . " id not found or records(s) not updated<br>\n");
+    echo json_encode(['id' => -1]);
+  }
 }
 
 function doTaskPairList($connection, $table, $quid) {
@@ -288,33 +463,93 @@ $function = $_POST["query"];
 $con = openDatabase();
 
 switch ($function) {
+  //
+  // ------->>  'tasks' table queries  <<------
+  //
+  case "taskList":
+    $state = $_POST["state"];
+    cLog("taskList state parameter " . $state . " received<br />\n");
+    doTaskList($con, $taskTable, $state);
+  break;
   case "taskDetail":
     $id = $_POST["id"];
     doTaskDetail($con,$taskTable,$id);
   break;
+  case "createTask":
+    $task = $_POST["taskStr"];
+    cLog ($task . "<br />\n");
+    doCreateTask($con, $taskTable, $task);
+  break;
+  case "markTasksDone": // mark all active done rather than delete.
+  case "markDone": // Deprecated
+    doUpdateTaskState($con, $taskTable, -1, "TRUE");
+  break;
+  case "updateTaskState":
+  case "updateState": // Deprecated
+    $id = $_POST["id"];
+    $state = $_POST["state"];
+    cLog("case updateTaskState for id " . $id . " with new state: " . $state . " selected <br />\n");
+    doUpdateTaskState($con, $taskTable, $id, $state);
+  break;
+  case "deleteTaskId":
+  case "deleteId": // Deprecated
+    $id = $_POST["id"];
+    cLog("case deleteId for id " . $id . " selected <br />");
+    doDelete($con, $taskTable,$id);  
+  break;
+  case "deleteActiveTasks": // perm delete all active.
+  case "deleteActive": // Deprecated
+    doDelete($con, $taskTable, -1);
+  break;
+
+  //
+  // ------->>  'question' table queries  <<------
+  //
   case "questionList":
     cLog("case questionList selected <br>\n");
     $state = $_POST["state"];
     cLog("questionList state parameter " . $state . " received<br>\n");
     doQuestionList($con, $questionTable, $state);
   break;
+  case "createQuestion":
+    $question = $_POST["questionStr"];
+    cLog ($question . "<br>\n");
+    doCreateQuestion($con, $questionTable, $question);
+  break;
+  case "updateQuestionState":
+    $id = $_POST["id"];
+    $state = $_POST["state"];
+    cLog("case updateQuestionState for id " . $id . " with new state: " . $state . " selected <br />\n");
+    $con = openDatabase();
+    doUpdateQuestionState($con, $questionTable, $id, $state);
+  break;
+  case "deleteQuestionId":
+    $id = $_POST["id"];
+    cLog("case deleteQuestionId for id " . $id . " selected <br />");
+    doDeleteQuestion($con, $questionTable, $id);  
+  break;
+  case "deleteAllQuestions":
+    $id= -1;
+    $con = openDatabase();
+    doDeleteQuestion($con, $questionTable, $id);
+  break;
+  //
+  // ------->>  'taskPair' table queries  <<------
+  //
   case "taskPairList":
-    cLog("case taskPairList selected <br>\n");
     $quid = $_POST["quid"];
     cLog("taskPairList question Id parameter " . $quid . " received<br>\n");
     doTaskPairList($con, $taskPairTable, $quid);
   break;
+  case "createQuestionTaskPairs":
+    $quid = $_POST["quid"];
+    doCreateQuestionTaskPairs($con,$quid);
+  break;
   case "createATaskPair":
-    cLog("case createATaskPairs selected<br>\n");
     $paramStr = $_POST["paramStr"];
     cLog("task pairs parameter: " . $paramStr . " received<br>\n");
     $params = json_decode($paramStr);
-    cLog("task pair question parameter " . $params->quid . "<br>\n");
-    cLog("task pair id1 parameter " . $params->task1 . "<br>\n");
-    cLog("task pair id2 parameter " . $params->task2 . "<br>\n");
-    cLog("pair selHist1 parameter " . $params->selHist1 . "<br>\n");
-    cLog("pair selHist2 parameter " . $params->selHist2 . "<br>\n");
-    cLog("pair ts parameter " . $params->ts . "<br>\n");
+    cLog("task pair parameters " . $params. "<br>\n");
     doCreateATaskPair($con,$taskPairTable,
       $params->quid,
       $params->task1,
@@ -323,18 +558,21 @@ switch ($function) {
       $params->selHist2,
       $params->ts); //Placeholder for the timestamp field that may not be used.
   break;
-  case "createQuestionTaskPairs":
+
+  //
+  // ------->>  'qtask' table queries  <<------
+  //
+  case "QTaskList":
+    cLog("case QTaskList selected <br>\n");
     $quid = $_POST["quid"];
-    doCreateQuestionTaskPairs($con,$quid);
+    cLog("taskPairList question Id parameter " . $quid . " received<br>\n");
+    doQTaskList($con, $qtaskTable, $quid);
   break;
   case "createQTask":
-    cLog("case createQTask selected<br>\n");
     $paramStr = $_POST["paramStr"];
     cLog("params: " . $paramStr . " received<br>\n");
     $params = json_decode($paramStr);
-    cLog("qtask question id: " . $params->quid . "<br>\n");
-    cLog("task id parameter: " . $params->taskId . "<br>\n");
-    cLog("task id parameter: " . $params->state . "<br>\n");
+    cLog("qtask params: " . $params . "<br>\n");
     doCreateQTask($con, $qtaskTable, 
       $params->quid, 
       $params->taskId,
@@ -344,15 +582,6 @@ switch ($function) {
     $paramStr = $_POST["paramStr"];
     $params = json_decode($paramStr);
     doDeleteQTask($con, $qtaskTable, $params->quid, $params->taskId);
-  break;
-  case "QTaskList":
-    cLog("case QTaskList selected <br>\n");
-    $quid = $_POST["quid"];
-    cLog("taskPairList question Id parameter " . $quid . " received<br>\n");
-    doQTaskList($con, $qtaskTable, $quid);
-  break;
-  case "updateTaskPair":
-    cLog('case ' . $function . ' requested,br />\n');
   break;
   default:
     cLog("case [" . $function . "] not recognized <br />");

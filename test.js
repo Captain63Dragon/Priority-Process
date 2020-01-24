@@ -11,7 +11,7 @@ function displayTaskList(listClass) {
   return new Promise ((resolve, reject) => {
     let bodyStr = "query=taskList&state=ALL&x=" + randValue;
     if (listClass !== "") {
-      request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+      request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
         .then(data => {
           let txt;
           if (data.substring(0,5) === "DEBUG") {
@@ -38,7 +38,7 @@ function displayTaskList(listClass) {
           resolve();
           /* list of some of the list classes:
           markTasksDoneList,       deleteActiveTasksList, questionList,    createQuestionList, deleteQuestionIdList,
-          updateQuestionStateList, createTaskPairsList,   updateQTaskList, updateTaskPairList */
+          updateQuestionStateList, createTaskPairsList,   updateQTaskList */
         })
         .catch(error => {
             console.log(error);
@@ -52,8 +52,8 @@ function displayTaskList(listClass) {
 
 function doDeleteTaskId(id) {
   return new Promise ((resolve, reject) => {
-    let bodyStr = "query=deleteId&id=" + id + "&mode=DEBUG&x=" + randValue;
-    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    let bodyStr = "query=deleteTaskId&id=" + id + "&mode=DEBUG&x=" + randValue;
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
       .then(data => {
         // console.log(data.substring(3,7));
         let txt ='';
@@ -82,7 +82,7 @@ function createTask(newTaskStr) {
     let taskStr = encodeURIComponent(newTaskStr, "UTF-8");
     let bodyStr = "query=createTask&taskStr=" + taskStr + "&mode=DEBUG&x=" + randValue;
 
-    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
       .then(data => {
         id = -1;
         // console.log(data.substring(3,7));
@@ -116,12 +116,12 @@ function doUpdateTaskState(obj) {
   return new Promise ((resolve, reject) => {
     let id = obj.id;
     let newState = obj.state;
-    let bodyStr = "query=updateState&id=" + id + 
+    let bodyStr = "query=updateTaskState&id=" + id + 
     "&state=" + newState +
     "&mode=DEBUG&x=" + randValue;
 
     // callback for xml http request object
-    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
     .then(data => {
       let txt;
       if (data.substring(0,5) === "DEBUG") {
@@ -147,7 +147,7 @@ function doUpdateTaskState(obj) {
 function clearTasks (id, mode) {
   // Note: mode is less than 0 for
   let bodyStr = "query=clearTasks" + newState + "&mode=DEBUG&x=" + randValue;
-  request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+  request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
     .then(data => {
       let txt;
       if (data.substring(0,5) === "DEBUG") {
@@ -160,7 +160,7 @@ function clearTasks (id, mode) {
           txt = `Update Task:<br />\nTask state changed to ${result.state} for id ${result.id}<br />\n`
         }
       }
-      document.querySelector(".updateState").innerHTML = txt;
+      document.querySelector(".updateTaskState").innerHTML = txt;
     })
     .catch(error => {
         console.log(error);
@@ -172,16 +172,16 @@ function doMarkTaskDone() {
     let bodyStr = '';
     let action = '';
     // let answer = prompt("Type 'delete' to permanently delete all tasks. ","mark done only");
-    let answer = 'markDone';
+    let answer = 'markTasksDone';
     if (answer !== null) { // user cancelled request!
       answer = answer.toLowerCase();
       if (answer === 'delete') {
-        action = "deleteActive";
+        action = "deleteActiveTasks";
       } else {
-        action = "markDone";
+        action = "markTasksDone";
       }
       bodyStr = `query=${action}&mode=DEBUG&x=${randValue}`;
-      request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+      request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
       .then(data => {
         let txt;
         if (data.substring(0,5) === "DEBUG") {
@@ -214,7 +214,7 @@ function doMarkTaskDone() {
 function doDeleteActiveTasks() {
   return new Promise ((resolve, reject) => {
     let bodyStr = `query=deleteActiveTasks&mode=DEBUG&${randValue}`;
-    request({url:"model/getData.php", body:bodyStr, headers:myHeader})
+    request({url:"model/dbAccess.php", body:bodyStr, headers:myHeader})
     .then(data => {
       let txt;
       if (data.substr(0,5) === "DEBUG") {
@@ -282,7 +282,7 @@ function doCreateQuestion(newQuStr) {
     let quStr = encodeURIComponent(newQuStr, "UTF-8");
     let bodyStr ="query=createQuestion&questionStr=" + quStr + "&mode=DEBUG&x=" +randValue;
     // console.log('doCreateQuestion with bodyStr: ',bodyStr);
-    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
     .then(data => {
       id = -1;
       let txt;
@@ -312,7 +312,7 @@ function doCreateQuestion(newQuStr) {
 function doDeleteQuestionId(id) {
   return new Promise ((resolve, reject) => {
     let bodyStr = "query=deleteQuestionId&id=" + id + "&mode=DEBUG&x=" + randValue;
-    request({url: "model/getData.php", body: bodyStr, headers:myHeader})
+    request({url: "model/dbAccess.php", body: bodyStr, headers:myHeader})
     .then(data => {
       let txt = '';
       if (data.substring(0,5) === "DEBUG") {
@@ -342,7 +342,7 @@ function doUpdateQuestionState(obj) {
     let bodyStr = "query=updateQuestionState&id=" + id + 
     "&state=" + newState + 
     "&mode=DEBUG&x=" + randValue
-    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
     .then(data => {
       let txt;
       if (data.substr(0,5) === "DEBUG") {
@@ -514,13 +514,6 @@ function displayQTaskList(listClass, quid) {
     } else {
       resolve();
     }
-  })
-}
-
-function doUpdateTaskPair() {
-  return new Promise ((resolve, reject) => {
-    console.log('doUpdateTaskPair');
-    resolve();
   })
 }
 

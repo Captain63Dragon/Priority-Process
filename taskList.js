@@ -44,7 +44,7 @@ function loadTasksFromSQL() {
   let tasks;
   let bodyStr = "query=taskList&state=FALSE&mode=none&x=" + randValue;
 
-  request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+  request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
     .then(data => {
       if (data.substring(3,8) === "tasks") { 
         let result = JSON.parse(data)[0];
@@ -104,12 +104,12 @@ function clearTasksFromSQL() {
   let bodyStr = '';
   let action = '';
   if (answer === 'delete') {
-    action = "deleteActive";
+    action = "deleteActiveTasks";
   } else {
-    action = "markDone";
+    action = "markTasksDone";
   }
   bodyStr = `query=${action}&mode=none&x=${randValue}`;
-  request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+  request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
   .then(data => {
     if (data.substring(2,5) === "num") {
       let result = JSON.parse(data);
@@ -126,10 +126,10 @@ function clearTasksFromSQL() {
 // Remove this task from the active list in the database. 
 function removeTaskFromSQL(taskItem) {
   let taskId = taskItem.id;
-  let bodyStr = "query=updateState&id=" + taskId +
+  let bodyStr = "query=updateTaskState&id=" + taskId +
                 "&state=TRUE" + "&mode=none&x=" + randValue;
   
-  request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+  request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
     .then(data => {
       if (data.substring(2,4) === "id") {
         let result = JSON.parse(data);
@@ -182,7 +182,7 @@ function storeTaskInSQL(task) {
     let taskStr = encodeURIComponent(task, "UTF-8");
     let bodyStr = "query=createTask&taskStr=" + taskStr + "&mode=none&x=" + randValue; 
   
-    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
     .then(data => {
       if (data.substring(2,4) === "id") { 
         let result = JSON.parse(data);

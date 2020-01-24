@@ -75,7 +75,7 @@ function storeQuestionInSQL(question) {
   return new Promise ((resolve, reject) => {
     let quStr = encodeURIComponent(question, "UTF-8");
     let bodyStr ="query=createQuestion&questionStr=" + quStr + "&mode=DEBUG&x=" +randValue;
-    request({url: "model/getData.php", body: bodyStr, headers: myHeader})
+    request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})
     .then(data => {
       id = -1;
       let txt;
@@ -246,7 +246,7 @@ function selectQuestion(e) {
 function removeQuestionFromSQL(quid){
   return new Promise ((resolve, reject) => {
     let bodyStr = "query=updateQuestionState&id=" + quid + "&state=TRUE&mode=active&x=" + randValue;
-    request({url: "model/getData.php", body: bodyStr, headers:myHeader})
+    request({url: "model/dbAccess.php", body: bodyStr, headers:myHeader})
       .then(data => {
         let result = JSON.parse(data);
         if (result.id >= 0) { // id of deleted record returned..
