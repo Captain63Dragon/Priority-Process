@@ -22,3 +22,12 @@ export let request = obj => {
     xhr.send(obj.body); // This is the activation configuration. Body is also configured by the caller via obj. Caller activates this object.
   });
 };
+
+export function waitms(ms) {
+  var start = new Date().getTime();
+  var end  = start; 
+  while (end < start + ms) {
+    end = new Date().getTime();
+  }
+  return (`Done waiting ${ms} milliseconds`);
+}
