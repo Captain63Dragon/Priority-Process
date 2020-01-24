@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.css">
+  <link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <title>Task Details</title>
+</head>
+<style>
+.task-elapsed,
+.task-updated,
+.task-entered {
+  font-size: small;
+  font-weight: bold;
+}
+span.normal {
+  font-weight: normal;
+}
+span.late {
+  background-color: darkred;
+  font-weight:normal;
+  color: bisque;
+}
+span.completed {
+  background-color: green;
+  font-weight:normal;
+  color: lightyellow;
+}
+
+</style>
+
+<body>
+  <div class="container">
+    <div class="row">
+      <div class="col s12">
+        <div id="main" class="card">
+          <div class="card-content">
+            <div class="card-title">Task Details</div>
+            <div class="task-entered">Created: </div>
+            <div class="task-elapsed">Open for: </div>
+            <div class="task-updated">last updated: </div>
+            <form id="task-form">
+              <div class="input-field col s12">
+                <input type="text" name='task' id='task' autocomplete=off value=''>
+              </div>
+              <input type="submit" value="Update Task" class="btn">
+            </form>
+          </div>
+          <div class="card-action">
+            <div class="input-field col s12">
+              <form id="select-form">
+                <select id='category'></select> 
+                <label for="select-form">Tasks Category</label> 
+                <textarea id="details" class="materialize-textarea"></textarea>
+                <label for="details">Details of Task</label>
+              </form>
+            </div>
+            <a href="#" class="stats btn black">History</a>
+            <a href="#" class="cancel-back btn black">Done</a> <!-- script changes this to Cancel when a change has been entered -->
+            <a href="#" class="save btn black" style="visibility: hidden">Save</a> <!-- script changes this to vis when dirty -->
+          </div>
+      </div>
+    </div>
+  </div>
+  <script
+  src="https://code.jquery.com/jquery-3.2.1.js"
+  integrity="sha256-DZAnKJ/6XZ9si04Hgrsxu/8s717jcIzLy3oi35EouyE="
+  crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.js"></script>
+  <script src="taskDetail.js" type='module'></script>
+</body>
+</html>
+
+<!-- <div class="container">
+  <div class="row">
+    <div class="col s12">
+      <div id="main" class="card">
+        <div class="card-content">
+          <span class="card-title">Task Details</span>
+          <div class="row">
+            <form id="task-form">
+              <div class="input-field col s12">
+                <input type="text" name='task' id='task' autocomplete=off value='testing'>
+              </div>
+              <input type="submit" value="Update Task" class="btn">
+            </form>
+          </div>
+        </div>
+        <div class="card-action"> 
+          <div class="input-field col s12">
+          <form id="select-form">
+            <select>
+             <option value="" disabled selected>Category</option>
+             <option value="1">Option 1</option>
+             <option value="2">Option 2</option>
+             <option value="3">Option 3</option>
+            </select> 
+          </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>  -->

@@ -47,6 +47,27 @@ function openDatabase() {
   return $connection;
 }
 
+function doTaskDetail($connection, $table, $id) {
+  if ($id >= 0) {
+    $myQu = "SELECT task, category, description, entered, touched, done " . 
+      "FROM ". $table . " WHERE id=" . $id;
+      cLog("The query I've built is: " . $myQu . "<br>\n");
+      $query = mysqli_query($connection, $myQu);
+      $resArray = [];
+      while ($row = mysqli_fetch_assoc($query)) {
+        array_push($resArray, [
+          'task'        => $row['task'],
+          'category'    => $row['category'],
+          'description' => $row['description'],
+          'entered'     => $row['entered'],
+          'touched'     => $row['touched'],
+          'done'        => $row['done'],
+        ]);
+      }
+      echo json_encode($resArray);
+  } // else if -1, special case of .. what?
+}
+
 function doQuestionList($connection, $table, $state) {
   if ($state == "TRUE") {
     $myQu = "SELECT question, id, archived FROM ". $table . " WHERE archived";
@@ -267,6 +288,10 @@ $function = $_POST["query"];
 $con = openDatabase();
 
 switch ($function) {
+  case "taskDetail":
+    $id = $_POST["id"];
+    doTaskDetail($con,$taskTable,$id);
+  break;
   case "questionList":
     cLog("case questionList selected <br>\n");
     $state = $_POST["state"];
