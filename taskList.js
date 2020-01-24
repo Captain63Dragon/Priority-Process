@@ -288,7 +288,7 @@ function actionOnTask(e) {
 // Remove Task from GUI and update the data stores. LS is updated in case the server goes away.
 function removeTask (e) {
   if(e.target.parentElement.classList.contains('delete-item')) {
-    if(confirm(`Removing "${e.target.parentElement.parentElement.textContent}". Are you sure?`)) {
+    if(confirm(`Marking "${e.target.parentElement.parentElement.textContent}" as Completed. Proceed?`)) {
       // moved into removeSQL function so it is removed only if delete works
       // e.target.parentElement.parentElement.remove();
       removeTaskFromSQL(e.target);
