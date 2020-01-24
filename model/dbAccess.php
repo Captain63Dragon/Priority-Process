@@ -88,21 +88,58 @@ function doTaskList($connection, $table, $state) {
   echo $someJSON;
 }
 
-function doCreateTask($connection, $table, $taskStr) {
-  cLog("do the create/insert function <br />\n");
-  if ($taskStr == "") {
-    cLog("Invalid task name: " . $taskStr . "<br />\n");
-  } else {
-    $myQu = 'INSERT INTO '  .  $table . ' (task) VALUES ("' . $taskStr . '")';
-    $connection->query($myQu);
-    cLog("the query i've built: " . $myQu . "<br />\n" );
-    if ($connection->affected_rows != 1) {
-      cLog(mysqli_error($connection) . " Task not inserted <br />\n");
-      echo json_encode(['id' => -1]);
-    } else {
-      $newId = mysqli_insert_id($connection);
-      cLog("Task " . $newId . " inserted");
-      echo json_encode(['id' => $newId]);
+function doCreateTask($connection, $table) {
+  $myQu ="";
+  if (!empty($_POST)) {
+    if (isset($_POST['taskStr'])) {
+      $taskStr = $_POST["taskStr"];
+      cLog("do the create/insert function <br />\n");
+      if ($taskStr == "") {
+        cLog("Invalid task name: " . $taskStr . "<br />\n");
+      } else {
+        $myQu = 'INSERT INTO '  .  $table . 
+          ' (task,category,description) VALUES ("' . $taskStr . 
+          '", "Personal","")';
+      }
+    } else if (isset($_POST['params'])) {
+      $paramStr = $_POST['params'];
+      if ($paramStr == "") {
+        cLog("Invalid task parameters: " . $paramStr . "<br />\n");
+      } else {
+        $params = json_decode($paramStr);
+        $values = " (" . $params->id . ", '";
+        $values .= $params->task . "', '";
+        $values .= $params->category . "', '";
+        $values .= $params->description . "') ";
+        $upVals = " task='";
+        $upVals .= $params->task . "', category='";
+        $upVals .= $params->category . "', description='";
+        $upVals .= $params->description . "';";
+        $myQu = 'INSERT INTO '  .  $table . 
+          " (id, task, category, description) VALUES" . 
+          $values . "ON DUPLICATE KEY UPDATE" . $upVals ;
+      }
+    }
+    if ($myQu != "") { 
+      $connection->query($myQu);
+      cLog("the query i've built: " . $myQu . "<br />\n" );
+      if(isset($_POST['taskStr'])) {
+        if ($connection->affected_rows != 1) {
+          cLog(mysqli_error($connection) . " Task not inserted <br />\n");
+          echo json_encode(['id' => -1]);
+        } else {
+          $newId = mysqli_insert_id($connection);
+          cLog("Task " . $newId . " inserted");
+          echo json_encode(['id' => $newId]);
+        }
+      } else if (isset($_POST['params'])) {
+        if ($connection->affected_rows < 1) { // Duplicate reports 2 updates!
+          cLog(mysqli_error($connection) . " Task not updated <br />\n");
+          echo "1"; // also note that exact updates show no affected rows!
+        } else {
+          echo "0"; // successfully updated
+        }
+      }
     }
   }
 }
@@ -476,9 +513,7 @@ switch ($function) {
     doTaskDetail($con,$taskTable,$id);
   break;
   case "createTask":
-    $task = $_POST["taskStr"];
-    cLog ($task . "<br />\n");
-    doCreateTask($con, $taskTable, $task);
+    doCreateTask($con, $taskTable);
   break;
   case "markTasksDone": // mark all active done rather than delete.
   case "markDone": // Deprecated

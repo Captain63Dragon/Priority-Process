@@ -30,9 +30,8 @@ const taskInput= document.querySelector('#task');
 const category = document.querySelector('#category');
 const taskDetail = document.querySelector('#details');
 const statsBtn = document.querySelector('.stats');
-const cancelBtn = document.querySelector('.cancel-back');
-const saveBtn = document.querySelector('.save');
-const dirty = new CustomEvent('taskUpdated');
+const backBtn = document.querySelector('.back');
+// const dirty = new CustomEvent('taskUpdated');
 let selectInstance; // Materialize select instance; filled on load.
 
 // load event listeners
@@ -40,13 +39,12 @@ loadEventListeners();
 
 function loadEventListeners() {
   document.addEventListener('DOMContentLoaded',loadTaskFromSQL); // after load do..
-  form.addEventListener('submit',updateTaskStr);
+  form.addEventListener('submit',updateTaskChanges);
   statsBtn.addEventListener('click',goToTaskStats);
-  cancelBtn.addEventListener('click',abandonChanges);
-  saveBtn.addEventListener('click',saveTaskChanges);
+  backBtn.addEventListener('click',abandonChanges);
   category.addEventListener('change',changeCategory);
   taskDetail.addEventListener('keyup',changeDetail);
-  taskInput.addEventListener('taskUpdated', showHideSave);
+  // taskInput.addEventListener('taskUpdated', showHideSave);
   window.addEventListener("beforeunload", readyToLeave);
 }
 function readyToLeave(e) {
@@ -78,20 +76,28 @@ function loadTaskFromSQL() {
         updateCategory(result.category);
         taskInput.value = result.task;
         taskDetail.textContent = result.description;
+        M.textareaAutoResize($('#details'));
+        M.updateTextFields(); 
       }
     })
   })
 }
 
-// function storeTaskToSQL() {
-//   return new Promise ((resolve, reject) => {
-//     let bodyStr =`query=updateTaskDetail&id=${taskID}&mode=active&x${randValue}`;
-//     request({url: "model/dbAccess.php", body: bodyStr, headers:myHeader})
-//     .then(data => {
-//       if (data === "1") {}
-//     })
-//   })
-// }
+function storeTaskToSQL(params) {
+  return new Promise ((resolve, reject) => {
+    params.task = encodeURIComponent(params.task, "UTF-8");
+    let paramStr = JSON.stringify(params);
+    let bodyStr =`query=createTask&params=${paramStr}&mode=active&x${randValue}`;
+    request({url: "model/dbAccess.php", body: bodyStr, headers:myHeader})
+    .then(data => {
+      if (data === "1") {
+        console.log("returned: ", data, "no change of database");
+      } else {
+        console.log("no error: ", data, "values updated");
+      }
+    })
+  })
+}
 
 // Based on times in database formats and task done-ness, update HTML on 
 // task detail page
@@ -122,7 +128,8 @@ function loadCategoriesFromSQL() {
   let cat = [
     {value:"work", text: "@Work"},
     {value:"personal", text: "@Personal"},
-    {value:"unknown", text: "@Zknown"}
+    {value:"unknown", text: "@Zaudi"},
+    {value:"priority", text:'@Priority'}
   ]
   return cat;
 }
@@ -134,7 +141,7 @@ function updateCategory(category) {
   if (category === 'Unknown') {
     let pers = myCategories.find(el => el.value==='personal');
     category = pers.value;
-    taskInput.dispatchEvent(dirty);
+    // taskInput.dispatchEvent(dirty);
   }
   myCategories.forEach((opt, idx)  => {
     let option = document.createElement('option');
@@ -147,16 +154,6 @@ function updateCategory(category) {
   let options={};
   selectInstance = M.FormSelect.init(elems,options);
 } 
-
-function showHideSave() {
-  if (newTask !== {} ) {
-    saveBtn.style.visibility='visible';
-    cancelBtn.textContent = 'Cancel';
-  } else {
-    saveBtn.style.visibility='hidden';
-    cancelBtn.textContent = 'Done';
-  }
-}
 
 // convert a mysql date into a display timestamp
 function myDateString(date) {
@@ -206,17 +203,24 @@ function goToTaskStats(e) {
 }
 
 function goToTaskList() {
-  window.open('taskList.html', '_top');
+  // window.open('taskList.html', '_top');
+  window.open('taskList.html');
 }
 
 function abandonChanges(e) {
-	if (dirty == false) {
-    goToTaskList();
-  }
+  goToTaskList();
+  e.preventDefault();
 }
 
-function saveTaskChanges() {
-	alert('action: saveTaskChanges');
+function updateTaskChanges(e) {
+  let task = taskInput.value;
+  let cat = category.options[category.selectedIndex].text.split('@')[1];
+  let desc = taskDetail.value;
+  let params = {id: taskID, task: task, category: cat, description: desc};
+  console.log(params);
+  storeTaskToSQL(params);
+  goToTaskList();
+  e.preventDefault();
 }
 
 function changeCategory() {
@@ -224,5 +228,5 @@ function changeCategory() {
 }
 
 function changeDetail() {
-	alert('action: changeDetail');
+	// alert('action: changeDetail');
 }
