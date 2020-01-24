@@ -63,7 +63,6 @@ function loadTasksFromSQL() {
     let bodyStr = "query=taskList&state=FALSE&mode=none&x=" + randValue;
     request({url: "model/getData.php", body: bodyStr, headers: myHeader})
     .then(data => {
-      // console.log(data.substring(3,8));
       if (data.substring(3,8) === "tasks") {
         let result = JSON.parse(data)[0];
         tasks = result.tasks;
@@ -459,9 +458,7 @@ function createTaskPairsArray(tasks) {
   currQue.taskPairs.forEach(function(aPair, index){
     let res1 = taskIDs.findIndex((id) => aPair.pair[0].taskId === id);
     let res2 = taskIDs.findIndex((id) => aPair.pair[1].taskId === id);
-    // console.log(res1, res2, aPair);
     if (res1 >= 0 && res2 >= 0) {
-      // console.log('Adding good pair '+ JSON.stringify(currQue.taskPairs[index]));
       goodPair.push(aPair);
     } else {
       dirty = true; // this pair is being removed, so need to save update
@@ -486,7 +483,6 @@ function createTaskPairsArray(tasks) {
             { taskID: tasks[j], selHist: ""}
           ]
         };
-        // console.log('Adding '+str);
         currQue.taskPairs.push(aPair);
         dirty = true; // new pair added; save update
       }
@@ -527,7 +523,6 @@ function storeSelHistoryInSQL(idx) {
       selHist2: aPair[1].selHist,
       ts: Date.now()
     }
-    console.log(params);
     let paramStr = JSON.stringify(params);
     let bodyStr = "query=createATaskPair&paramStr=" + paramStr + "&mode=active&x=" + randValue;
     request({url: "model/dbAccess.php", body: bodyStr, headers: myHeader})

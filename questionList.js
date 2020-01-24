@@ -79,6 +79,7 @@ function storeQuestionInSQL(question) {
     .then(data => {
       id = -1;
       let txt;
+      // TODO: what is this all about? Not saving questions?
       if (data.substring(0,5) !== "alksjdf") {
         console.log(data.substring(1,16), "Data:\n",data);
       } else {
@@ -139,7 +140,6 @@ function goToTaskList(e){
   if (e != null) e.preventDefault();
 }
 function goToPriorityList(e){
-  console.log('going to Priority with QuestionID: '+questionID);
   window.open(`priority.html?quid=${questionID}`,'_top');
   if (e != null) e.preventDefault();
 }
@@ -224,7 +224,6 @@ function removeQuestion (e) {
     let qtext = e.target.parentElement.parentElement.innerHTML;
     qtext = qtext.substr(0,qtext.indexOf('<a class'));
     if(confirm(`Removing "${qtext}". Are you sure?`)) {
-      // console.log(e.target.id);
       removeQuestionFromSQL(e.target.id)
       .then( removed => {
         console.assert(e.target.id === removed, "Deletion was wonky! Check it out.");
@@ -249,13 +248,10 @@ function removeQuestionFromSQL(quid){
     let bodyStr = "query=updateQuestionState&id=" + quid + "&state=TRUE&mode=active&x=" + randValue;
     request({url: "model/getData.php", body: bodyStr, headers:myHeader})
       .then(data => {
-        console.log(data);
         let result = JSON.parse(data);
         if (result.id >= 0) { // id of deleted record returned..
-          // console.log (`deleted id: ${result.id} found and deleted<br>\n`);
           resolve(result.id);
         } else if (result.num >= 1) {
-          // console.log(`deleted all questions [${result.num}]`);
           resolve(quid) 
         } else {
           reject("Deletion returned code: " + result.id);

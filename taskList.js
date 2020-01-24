@@ -46,8 +46,6 @@ function loadTasksFromSQL() {
 
   request({url: "model/getData.php", body: bodyStr, headers: myHeader})
     .then(data => {
-      // console.log("Returned data is", data);
-      // console.log(data, data.substring(3,8));
       if (data.substring(3,8) === "tasks") { 
         let result = JSON.parse(data)[0];
         tasks = result.tasks;
@@ -130,11 +128,9 @@ function removeTaskFromSQL(taskItem) {
   let taskId = taskItem.id;
   let bodyStr = "query=updateState&id=" + taskId +
                 "&state=TRUE" + "&mode=none&x=" + randValue;
-  // console.log(bodyStr, taskItem.id);
   
   request({url: "model/getData.php", body: bodyStr, headers: myHeader})
     .then(data => {
-      // console.log(data.substring(2,4));
       if (data.substring(2,4) === "id") {
         let result = JSON.parse(data);
         if (result.id < 0) {
@@ -173,7 +169,6 @@ function removeTaskFromLS(taskItem) {
 
   tasks.forEach(function(task, index){
     if(taskStr === task.task) {
-      // console.log('found match for ' + task.task);
       tasks.splice(index, 1);
     }
   });
@@ -281,13 +276,9 @@ function clearTasks() {
 // A task element has been clicked. Find out where and pass to the appropriate
 // handler
 function actionOnTask(e) {
-  // console.log(e.target);
   if (e.target.parentElement.classList.contains('delete-item')) {
     removeTask(e);
   } else if (e.target.classList.contains('collection-item')) {
-    // console.log(e.target.firstChild.nextElementSibling);
-    // console.log(e.target.firstChild.nextElementSibling.firstChild);
-    // console.log(e.target.firstChild.nextElementSibling.firstChild.id);
     // nav down to the delete item where the id lives
     let id = e.target.firstChild.nextElementSibling.firstChild.id;
     goToTaskDetail(id);
@@ -297,7 +288,6 @@ function actionOnTask(e) {
 // Remove Task from GUI and update the data stores. LS is updated in case the server goes away.
 function removeTask (e) {
   if(e.target.parentElement.classList.contains('delete-item')) {
-    // console.log(e.target.parentElement.parentElement.textContent);
     if(confirm(`Removing "${e.target.parentElement.parentElement.textContent}". Are you sure?`)) {
       // moved into removeSQL function so it is removed only if delete works
       // e.target.parentElement.parentElement.remove();

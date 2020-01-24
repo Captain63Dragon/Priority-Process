@@ -62,7 +62,6 @@ function goToTaskList(e){
 }
 
 function goToQuestionList(e){
-  console.log('going to Priority with QuestionID: '+questionID);
   window.open(`questionList.html?quid=${questionID}`,'_top');
   if (e != null) e.preventDefault();
 }
