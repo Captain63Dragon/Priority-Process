@@ -29,7 +29,7 @@ function loadEventListeners() {
   // Add task event
   form.addEventListener('submit', addTask);
   // Remove task event
-  taskList.addEventListener('click', removeTask);
+  taskList.addEventListener('click', actionOnTask);
   // Clear task event
   questionListBtn.addEventListener('click', goToQuestionList);
   // Clear task event
@@ -278,6 +278,22 @@ function clearTasks() {
   }
 }
 
+// A task element has been clicked. Find out where and pass to the appropriate
+// handler
+function actionOnTask(e) {
+  // console.log(e.target);
+  if (e.target.parentElement.classList.contains('delete-item')) {
+    removeTask(e);
+  } else if (e.target.classList.contains('collection-item')) {
+    // console.log(e.target.firstChild.nextElementSibling);
+    // console.log(e.target.firstChild.nextElementSibling.firstChild);
+    // console.log(e.target.firstChild.nextElementSibling.firstChild.id);
+    // nav down to the delete item where the id lives
+    let id = e.target.firstChild.nextElementSibling.firstChild.id;
+    goToTaskDetail(id);
+  }
+}
+
 // Remove Task from GUI and update the data stores. LS is updated in case the server goes away.
 function removeTask (e) {
   if(e.target.parentElement.classList.contains('delete-item')) {
@@ -338,6 +354,11 @@ function filterTasks(e) {
 function goToQuestionList(e) {
   window.open('questionList.html','_top');
   if (e != null) e.preventDefault();
+}
+
+// Task Detail requested. Jump to the Task Details page.
+function goToTaskDetail(taskId) {
+  window.open('taskDetail.html?taskID=' + taskId,'_top');
 }
 
 // Convert 1 to 1st, 11 to 11th and 21 to 21st, etc.
