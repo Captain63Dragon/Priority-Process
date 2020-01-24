@@ -41,26 +41,26 @@ span.completed {
             <div class="card-title">Task Details</div>
             <div class="task-entered">Created: </div>
             <div class="task-elapsed">Open for: </div>
-            <div class="task-updated">last updated: </div>
+            <div class="task-updated">last updated: </div><hr>
             <form id="task-form">
               <div class="input-field col s12">
-                <input type="text" name='task' id='task' autocomplete=off value=''>
+                <input type="text" name='task' id='task' autocomplete=off>
+                <label class="active"for="task">Update Task</label>
+              </div>
+              <div class="input-field col s12">
+                <select id='category'></select> 
+                <label class="active" for="select-form">Tasks Category</label> 
+              </div>
+              <div class="input-field col s12">
+                <textarea id="details" class="materialize-textarea"></textarea>
+                <label class="active" for="details">Details of Task</label>
               </div>
               <input type="submit" value="Update Task" class="btn">
             </form>
           </div>
           <div class="card-action">
-            <div class="input-field col s12">
-              <form id="select-form">
-                <select id='category'></select> 
-                <label for="select-form">Tasks Category</label> 
-                <textarea id="details" class="materialize-textarea"></textarea>
-                <label for="details">Details of Task</label>
-              </form>
-            </div>
             <a href="#" class="stats btn black">History</a>
-            <a href="#" class="cancel-back btn black">Done</a> <!-- script changes this to Cancel when a change has been entered -->
-            <a href="#" class="save btn black" style="visibility: hidden">Save</a> <!-- script changes this to vis when dirty -->
+            <a href="#" class="back btn black">Back</a> <!-- script changes this to Cancel when a change has been entered -->
           </div>
       </div>
     </div>
@@ -73,35 +73,3 @@ span.completed {
   <script src="taskDetail.js" type='module'></script>
 </body>
 </html>
-
-<!-- <div class="container">
-  <div class="row">
-    <div class="col s12">
-      <div id="main" class="card">
-        <div class="card-content">
-          <span class="card-title">Task Details</span>
-          <div class="row">
-            <form id="task-form">
-              <div class="input-field col s12">
-                <input type="text" name='task' id='task' autocomplete=off value='testing'>
-              </div>
-              <input type="submit" value="Update Task" class="btn">
-            </form>
-          </div>
-        </div>
-        <div class="card-action"> 
-          <div class="input-field col s12">
-          <form id="select-form">
-            <select>
-             <option value="" disabled selected>Category</option>
-             <option value="1">Option 1</option>
-             <option value="2">Option 2</option>
-             <option value="3">Option 3</option>
-            </select> 
-          </form>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>  -->
