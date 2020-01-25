@@ -6,6 +6,7 @@ const isDebug = false;
 let randValue = Math.random();
 if (isDebug) { randValue = -1; } 
 let lastTaskID = -1;
+let categories =  [];
 let serverless = false; // Assume server is active until it fails
 const myHeader = {"Content-type": "application/x-www-form-urlencoded"};
 
@@ -326,10 +327,39 @@ function populateTasks(tasks) {
   });
 }
 
+function loadCategoriesFromSQL() {
+  // something like SELECT DISTINCT category FROM tasks;
+  // TODO: would like to read these out of the current task database or dedicated category table
+  let cat = [
+    {value:"work", text: "@Work"},
+    {value:"personal", text: "@Personal"},
+    {value:"zaudi", text: "@Zaudi"},
+    {value:"priority", text:'@Priority'}
+  ]
+  return cat;
+}
+
 // Filter Tasks - currently just a pattern search
 function filterTasks(e) {
   const text = e.target.value.toLowerCase();
+  if (categories.length == 0) {
+    categories = loadCategoriesFromSQL();
+  }
 
+  // if there is an @
+  let found = -1;
+  let loc = text.indexOf('@');
+  if (loc != -1) {
+    let [cat, rest] = text.substring(loc+1).split(/\s/);
+    categories.forEach( (item,idx) => {
+      if (item.value.indexOf(cat) == 0 && found < 0) {
+        found = idx;
+      }
+    })
+    // best guess on which category to filter on
+    console.log(categories[found].text);
+  }
+  // TODO: need to load categories for each task and then implement filtering on them
   document.querySelectorAll('.collection-item').forEach(function(task) {
     const item = task.firstChild.textContent;
     if(item.toLowerCase().indexOf(text) != -1) {
