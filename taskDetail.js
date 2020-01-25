@@ -125,10 +125,11 @@ function updateTaskTimes(entered, touched, done) {
 
 function loadCategoriesFromSQL() {
   // something like SELECT DISTINCT category FROM tasks;
+  // TODO: would like to read these out of the current task database or dedicated category table
   let cat = [
     {value:"work", text: "@Work"},
     {value:"personal", text: "@Personal"},
-    {value:"unknown", text: "@Zaudi"},
+    {value:"zaudi", text: "@Zaudi"},
     {value:"priority", text:'@Priority'}
   ]
   return cat;
