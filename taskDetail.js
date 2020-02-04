@@ -1,5 +1,4 @@
 import { request } from './request.js';
-import { waitms } from './request.js';
 
 // Housekeeping variables.
 // const isDebug = true;
@@ -45,8 +44,9 @@ function loadEventListeners() {
   category.addEventListener('change',changeCategory);
   taskDetail.addEventListener('keyup',changeDetail);
   // taskInput.addEventListener('taskUpdated', showHideSave);
-  window.addEventListener("beforeunload", readyToLeave);
+  // window.addEventListener("beforeunload", readyToLeave);
 }
+
 function readyToLeave(e) {
   if(checkForDirty()) {
     // dirty? then update ie,
@@ -203,14 +203,13 @@ function goToTaskStats(e) {
   if (e != null) e.preventDefault();
 }
 
-function goToTaskList() {
-  // window.open('taskList.html', '_top');
-  window.open('taskList.html');
+function goToTaskList(e) {
+  window.open('taskList.html', '_top');
+  if (e != null) e.preventDefault();
 }
 
 function abandonChanges(e) {
-  goToTaskList();
-  e.preventDefault();
+  goToTaskList(e);
 }
 
 function updateTaskChanges(e) {
@@ -220,8 +219,7 @@ function updateTaskChanges(e) {
   let params = {id: taskID, task: task, category: cat, description: desc};
   console.log(params);
   storeTaskToSQL(params);
-  goToTaskList();
-  e.preventDefault();
+  goToTaskList(e);
 }
 
 function changeCategory() {
